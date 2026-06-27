@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# 类型检查 / lint 缓存
+.mypy_cache/
+.ruff_cache/
+.ty_cache/
+.pytest_cache/
+
+# 本工具安装产物 (脚手架装到目标工程后写入的清单)
+.agents/.install-manifest.json
+
+# 历史遗留备份
+*.bak
+*.bak_*
+*~
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+*.swp

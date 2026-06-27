@@ -5,7 +5,7 @@ Each function takes `checker`, `py_ver`, and `src_dir` and returns a rendered st
 
 from __future__ import annotations
 
-from ._checkers import CHECKER_DEPS, CHECKER_CMD
+from ._checkers import CHECKER_CMD, CHECKER_DEPS
 
 
 def _ruff_target(py_ver: str) -> str:
@@ -17,28 +17,26 @@ def _mypy_section(py_ver: str) -> str:
     """Generate [tool.mypy] section with proper regex escapes for exclude."""
     bs: str = chr(92)  # single backslash
     return (
-        f'[tool.mypy]\n'
+        f"[tool.mypy]\n"
         f'python_version = "{py_ver}"\n'
-        f'strict = true\n'
-        f'warn_unused_ignores = true\n'
-        f'disallow_untyped_defs = true\n'
-        f'exclude = [\n'
+        f"strict = true\n"
+        f"warn_unused_ignores = true\n"
+        f"disallow_untyped_defs = true\n"
+        f"exclude = [\n"
         f"    '^ref/',\n"
         f"    '^{bs}.claude/skills/',\n"
         f"    '^{bs}.agents/skills/',\n"
         f"    '^{bs}.codex/skills/',\n"
         f"    '{bs}.bak',\n"
         f"    '~$',\n"
-        f']\n'
+        f"]\n"
     )
 
 
 def pyproject_template(checker: str, py_ver: str, src_dir: str) -> str:
     dep: str = CHECKER_DEPS[checker]
     test_ignore: str = (
-        '"**/tests/**" = ["ANN", "S101"]\n'
-        if src_dir != "."
-        else '"tests/**" = ["ANN", "S101"]\n'
+        '"**/tests/**" = ["ANN", "S101"]\n' if src_dir != "." else '"tests/**" = ["ANN", "S101"]\n'
     )
     checker_section: str = (
         _mypy_section(py_ver)

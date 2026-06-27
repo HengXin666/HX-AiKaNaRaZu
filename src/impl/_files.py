@@ -1,11 +1,15 @@
-"""File-system helpers: read content dir, build file map, write to target."""
+"""Build the file/symlink specs for a target project.
+
+Pure assembly only — actual writing, manifest and uninstall live in
+``_install.py``. Install is strictly additive: a spec whose path already exists
+is skipped untouched, so there is no merge/overwrite/backup concept here.
+"""
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
-from ._merge import write_additive, write_smart
+from ._install import FileSpec, SymlinkSpec
 
 
 def content_root() -> Path:
@@ -18,12 +22,8 @@ def read_content(rel: str) -> str:
     return (content_root() / rel).read_text(encoding="utf-8")
 
 
-def build_files(checker: str, py_ver: str, src_dir: str = ".") -> list[tuple[str, str, bool]]:
-    """Assemble the complete file map for a target project.
-
-    Returns list of (path, content, is_merge) — merge mode means
-    only add missing sections/lines, never overwrite user's content.
-    """
+def build_files(checker: str, py_ver: str, src_dir: str = ".") -> list[FileSpec]:
+    """Assemble the complete file spec list for a target project."""
     from ._templates import (
         ci_yml_template,
         precommit_template,
@@ -35,134 +35,36 @@ def build_files(checker: str, py_ver: str, src_dir: str = ".") -> list[tuple[str
     verify_hook: str = read_content("hooks/verify_before_stop.sh")
 
     return [
-        ("pyproject.toml", pyproject_template(checker, py_ver, src_dir), True),
-        (".pre-commit-config.yaml", precommit_template(checker, src_dir), True),
-        (".gitignore", read_content(".gitignore"), True),
-        ("CLAUDE.md", read_content("CLAUDE.md"), True),
-        (".agents/rules/architecture.md", read_content("rules/architecture.md"), False),
-        (".agents/rules/naming.md", read_content("rules/naming.md"), False),
-        (".agents/rules/react-architecture.md", read_content("rules/react-architecture.md"), False),
-        (".agents/rules/react-ts-naming.md", read_content("rules/react-ts-naming.md"), False),
-        (".agents/settings.json", read_content("claude_settings.json"), False),
-        (".agents/hooks.json", read_content("codex_hooks.json"), False),
-        (".agents/hooks/format_after_edit.sh", fmt_hook, False),
-        (".agents/hooks/verify_before_stop.sh", verify_hook, False),
-        ("scripts/verify.sh", verify_sh_template(checker, src_dir), False),
-        ("scripts/check_arch.py", read_content("check_arch.py"), False),
-        (".github/workflows/ci.yml", ci_yml_template(checker, py_ver), False),
+        FileSpec("pyproject.toml", pyproject_template(checker, py_ver, src_dir)),
+        FileSpec(".pre-commit-config.yaml", precommit_template(checker, src_dir)),
+        FileSpec(".gitignore", read_content(".gitignore")),
+        FileSpec("CLAUDE.md", read_content("CLAUDE.md")),
+        FileSpec(".agents/rules/architecture.md", read_content("rules/architecture.md")),
+        FileSpec(".agents/rules/naming.md", read_content("rules/naming.md")),
+        FileSpec(
+            ".agents/rules/react-architecture.md", read_content("rules/react-architecture.md")
+        ),
+        FileSpec(".agents/rules/react-ts-naming.md", read_content("rules/react-ts-naming.md")),
+        FileSpec(".agents/settings.json", read_content("claude_settings.json")),
+        FileSpec(".agents/hooks.json", read_content("codex_hooks.json")),
+        FileSpec(".agents/hooks/format_after_edit.sh", fmt_hook),
+        FileSpec(".agents/hooks/verify_before_stop.sh", verify_hook),
+        FileSpec("scripts/verify.sh", verify_sh_template(checker, src_dir)),
+        FileSpec("scripts/check_arch.py", read_content("check_arch.py")),
+        FileSpec(".github/workflows/ci.yml", ci_yml_template(checker, py_ver)),
     ]
 
 
-def write_file(path: Path, content: str, *, force: bool = False) -> bool:
-    """Overwrite mode: full replace."""
-    if path.exists() and not force:
-        print(f"  skip (exists): {path}")
-        return False
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
-    if path.suffix == ".sh":
-        path.chmod(0o755)
-    print(f"  write: {path}")
-    return True
-
-
-# ---------------------------------------------------------------------------
-# individual symlinks
-# ---------------------------------------------------------------------------
-
-_SYMLINK_SPEC: list[tuple[str, str, str]] = [
-    (".claude", "settings.json", "../.agents/settings.json"),
-    (".claude", "rules", "../.agents/rules"),
-    (".claude", "hooks.json", "../.agents/hooks.json"),
-    (".claude", "hooks", "../.agents/hooks"),
-    (".codex", "hooks.json", "../.agents/hooks.json"),
-    (".codex", "hooks", "../.agents/hooks"),
-]
-
-
-def create_file_symlinks(target: Path, *, force: bool = False) -> list[str]:
-    """Create individual symlinks inside .claude/ and .codex/ pointing to .agents/."""
-    created: list[str] = []
-
-    agents_path = target / "AGENTS.md"
-    if agents_path.exists(follow_symlinks=False):
-        if force:
-            agents_path.unlink()
-        else:
-            print(f"  skip (exists): AGENTS.md")
-    if not agents_path.exists(follow_symlinks=False):
-        agents_path.symlink_to("CLAUDE.md")
-        print("  symlink: AGENTS.md -> CLAUDE.md")
-        created.append("AGENTS.md")
-
-    for container, name, src in _SYMLINK_SPEC:
-        container_path = target / container
-        if container_path.is_symlink():
-            container_path.unlink()
-            print(f"  unlink (旧版): {container}")
-        container_path.mkdir(parents=True, exist_ok=True)
-        link_path = container_path / name
-        if link_path.exists(follow_symlinks=False):
-            if not force:
-                print(f"  skip (exists): {container}/{name}")
-                continue
-            if link_path.is_symlink():
-                link_path.unlink()
-            elif link_path.is_dir():
-                shutil.rmtree(str(link_path))
-            else:
-                link_path.unlink()
-        link_path.symlink_to(src)
-        print(f"  symlink: {container}/{name} -> {src}")
-        created.append(f"{container}/{name}")
-
-    return created
-
-
-# ---------------------------------------------------------------------------
-# delete / uninstall
-# ---------------------------------------------------------------------------
-
-def delete_generated_files(target: Path, files: list[tuple[str, str, bool]]) -> None:
-    """Remove all files and symlinks generated by this tool."""
-    for rel, _content, _merge in files:
-        p = target / rel
-        if p.is_symlink():
-            p.unlink()
-            print(f"  删除: {rel} (symlink)")
-        elif p.is_file():
-            p.unlink()
-            print(f"  删除: {rel}")
-        elif p.is_dir():
-            shutil.rmtree(str(p))
-            print(f"  删除: {rel}/")
-
-    agents_path = target / "AGENTS.md"
-    if agents_path.is_symlink():
-        agents_path.unlink()
-        print("  删除: AGENTS.md (symlink)")
-
-    for container, name, _src in _SYMLINK_SPEC:
-        p = target / container / name
-        if p.is_symlink():
-            p.unlink()
-            print(f"  删除: {container}/{name} (symlink)")
-        container_path = target / container
-        if container_path.is_symlink():
-            container_path.unlink()
-            print(f"  删除: {container}/ (旧版目录链接)")
-
-    empty_dirs = [
-        ".agents/rules", ".agents/hooks", ".agents",
-        ".claude", ".codex", "scripts",
-        ".github/workflows", ".github",
+# Individual symlinks inside .claude/ and .codex/ pointing at the shared .agents/.
+# Kept as individual links (not whole-dir) so a user's existing skills/commands
+# under .claude/ are never shadowed.
+def build_symlinks() -> list[SymlinkSpec]:
+    return [
+        SymlinkSpec("AGENTS.md", "CLAUDE.md"),
+        SymlinkSpec(".claude/settings.json", "../.agents/settings.json"),
+        SymlinkSpec(".claude/rules", "../.agents/rules"),
+        SymlinkSpec(".claude/hooks.json", "../.agents/hooks.json"),
+        SymlinkSpec(".claude/hooks", "../.agents/hooks"),
+        SymlinkSpec(".codex/hooks.json", "../.agents/hooks.json"),
+        SymlinkSpec(".codex/hooks", "../.agents/hooks"),
     ]
-    for rel in empty_dirs:
-        p = target / rel
-        if p.is_dir():
-            try:
-                if not list(p.iterdir()):
-                    p.rmdir()
-                    print(f"  删除: {rel}/ (空目录)")
-            except OSError:
-                pass
