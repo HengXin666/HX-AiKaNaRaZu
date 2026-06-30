@@ -7,8 +7,7 @@
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/strip_emoji.sh\"",
-            "timeout": 30,
-            "statusMessage": "Stripping text emojis"
+            "timeout": 30
           },
           {
             "type": "command",
@@ -31,7 +30,7 @@
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/verify_react.sh\"",
             "timeout": 600,
-            "statusMessage": "Running repository verification"
+            "statusMessage": "Running verification"
           }
         ]
       }

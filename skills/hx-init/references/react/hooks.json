@@ -2,13 +2,12 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/strip_emoji.sh\"",
-            "timeout": 30,
-            "statusMessage": "Stripping text emojis"
+            "timeout": 30
           },
           {
             "type": "command",
@@ -24,12 +23,25 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"$CLAUDE_TOOL_INPUT\" | grep -qiE 'rm\\s+-rf|drop\\s+table|truncate' && exit 2 || exit 0",
+            "timeout": 5,
+            "statusMessage": ""  }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/verify_react.sh\""
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/verify_react.sh\"",
+            "timeout": 600
           }
         ]
       }

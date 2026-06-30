@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Stop: Agent 准备结束时强制跑全量校验。
-# React: biome ci + tsc 类型检查
+# Stop: Agent 准备结束时强制全量校验。
+# Web: biome ci + tsc --noEmit + knip
 # 自动识别平台：CodeBuddy(exit 2+stderr) vs Codex(JSON+exit 0)
 set -uo pipefail
 
@@ -13,19 +13,25 @@ else
 fi
 
 cd "$PROJECT_DIR"
-LOG_FILE="/tmp/biome_verify.log"
+LOG_FILE="/tmp/web_verify.log"
 PASS=true
 
 # 1. biome ci
 if command -v npx &>/dev/null; then
   echo "==> biome ci" >"$LOG_FILE"
-  npx biome ci ./src >>"$LOG_FILE" 2>&1 || PASS=false
+  npx @biomejs/biome ci 2>>"$LOG_FILE" >>"$LOG_FILE" || PASS=false
 fi
 
 # 2. tsc 类型检查
 if [[ -f "tsconfig.json" ]] && command -v npx &>/dev/null; then
   echo "==> tsc --noEmit" >>"$LOG_FILE"
-  npx tsc --noEmit >>"$LOG_FILE" 2>&1 || PASS=false
+  npx tsc --noEmit 2>>"$LOG_FILE" >>"$LOG_FILE" || PASS=false
+fi
+
+# 3. knip 死代码检测
+if command -v npx &>/dev/null && npx knip --version &>/dev/null 2>&1; then
+  echo "==> knip" >>"$LOG_FILE"
+  npx knip --no-progress 2>>"$LOG_FILE" >>"$LOG_FILE" || PASS=false
 fi
 
 if $PASS; then

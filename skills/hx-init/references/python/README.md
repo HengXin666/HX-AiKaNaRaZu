@@ -2,8 +2,8 @@
 
 ## 模式
 
-- **init**: 全量安装（pyproject/pre-commit/CI + hooks + rules）
-- **modify**: 仅 hooks + rules + check_arch（不碰已有 pyproject）
+- **init**: 全量安装(pyproject/pre-commit/CI + hooks + rules)
+- **modify**: 仅 hooks + rules + check_arch(不碰已有 pyproject)
 
 ## hooks
 
@@ -14,7 +14,7 @@
 | `hooks.json` | `.agents/settings.json` (CodeBuddy) |
 | `hooks-codex.json` | `.agents/hooks.json` (Codex) |
 
-## 动态模板（init 模式，替换 `{{}}` 后写入）
+## 动态模板(init 模式, 替换 `{{}}` 后写入)
 
 | 文件 | 目标 | 占位符 |
 |------|------|--------|
@@ -26,14 +26,14 @@
 ### 占位符替换规则
 
 - `{{PY_VER}}` → `3.11`
-- `{{RUFF_TARGET}}` → `py311`（PY_VER 去点）
+- `{{RUFF_TARGET}}` → `py311`(PY_VER 去点)
 - `{{CHECKER}}` → `mypy` / `ty` / `none`
 - `{{CHECKER_DEPS}}` → `"mypy>=1.14.1"` / `"ty>=0.0.1a1"` / 删除该项
 - `{{SRC_DIR}}` → `src` 或 `.`
-- `{{TEST_IGNORE}}` → `.` 时 `"tests/**" = ["ANN", "S101"]`，否则 `"**/tests/**" = ["ANN", "S101"]`
-- `{{TYPE_CMD_PRECOMMIT}}` → `.` 时 `uv run mypy .`，否则 `bash -c 'cd SRC_DIR && uv run mypy .'`
-- `{{TYPE_CMD_VERIFY}}` → `.` 时 `uv run mypy .`，否则 `(cd SRC_DIR && uv run mypy .)`
-- `{{CHECKER_SECTION}}`: mypy → `[tool.mypy]` 段，ty → `[tool.ty.src]` 段，none → 空
+- `{{TEST_IGNORE}}` → `.` 时 `"tests/**" = ["ANN", "S101"]`, 否则 `"**/tests/**" = ["ANN", "S101"]`
+- `{{TYPE_CMD_PRECOMMIT}}` → `.` 时 `uv run mypy .`, 否则 `bash -c 'cd SRC_DIR && uv run mypy .'`
+- `{{TYPE_CMD_VERIFY}}` → `.` 时 `uv run mypy .`, 否则 `(cd SRC_DIR && uv run mypy .)`
+- `{{CHECKER_SECTION}}`: mypy → `[tool.mypy]` 段, ty → `[tool.ty.src]` 段, none → 空
 
 ## 静态文件
 
