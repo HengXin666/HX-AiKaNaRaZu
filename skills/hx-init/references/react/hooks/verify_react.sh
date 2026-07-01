@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Stop: Agent 准备结束时强制全量校验。
-# Web: biome ci + tsc --noEmit + knip
-# 自动识别平台：CodeBuddy(exit 2+stderr) vs Codex(JSON+exit 0)
+# Stop: Agent 准备结束时强制前端全量校验 (biome ci + tsc --noEmit + knip)。
+# 校验失败时输出 JSON {continue:false, reason:"精简摘要"} 到 stdout + exit 0，
+# 仅注入精简摘要到 AI 上下文，完整日志保留在文件中。
 set -uo pipefail
 
 if [[ -n "${CODEBUDDY_PROJECT_DIR:-}" ]]; then
@@ -38,22 +38,31 @@ if $PASS; then
   exit 0
 fi
 
-FAIL_MSG="校验未通过，请根据以下错误修复后再结束："
-FAIL_DETAIL=$(cat "$LOG_FILE" 2>/dev/null || echo "无法读取日志")
+# 校验失败 — 生成精简摘要，避免全量日志注入 AI 上下文
 
-if [[ -n "${CODEBUDDY_PROJECT_DIR:-}" ]] || [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
-  echo "$FAIL_MSG" >&2
-  echo "$FAIL_DETAIL" >&2
-  exit 2
-fi
-
-REASON_JSON=$(echo "${FAIL_MSG}\n${FAIL_DETAIL}" | python3 -c "
-import sys, json
-text = sys.stdin.read().rstrip()
-print(json.dumps(text))
-" 2>/dev/null || echo '"校验未通过"')
-
-cat <<JSONEOF
-{"decision": "block", "reason": ${REASON_JSON}}
-JSONEOF
+# 校验失败 — 生成精简摘要，避免全量日志注入 AI 上下文
+python3 -c "
+import json
+log_path = '${LOG_FILE}'
+try:
+    with open(log_path) as f:
+        log = f.read()
+except Exception:
+    log = ''
+lines = [l.strip() for l in log.split('\n') if l.strip()]
+error_lines = [l for l in lines if any(k in l.lower() for k in ('error', 'fail', 'unused', '✖'))]
+error_cnt = len(error_lines)
+# 摘取前几行错误
+sample = '; '.join((l[:150] + ('...' if len(l) > 150 else '')) for l in error_lines[:3])
+checks = []
+if 'biome ci' in log: checks.append('biome')
+if 'tsc' in log: checks.append('tsc')
+if 'knip' in log: checks.append('knip')
+check_str = ', '.join(checks) if checks else '?'
+if sample:
+    reason = f'React 校验被拦截 ({check_str}): {error_cnt} 条错误. {sample}. 日志: {log_path}'
+else:
+    reason = f'React 校验被拦截 ({check_str}): {error_cnt} 条错误. 日志: {log_path}'
+print(json.dumps({'continue': False, 'reason': reason, 'systemMessage': f'React 校验失败 ({error_cnt} errors). 完整日志: {log_path}'}))
+"
 exit 0

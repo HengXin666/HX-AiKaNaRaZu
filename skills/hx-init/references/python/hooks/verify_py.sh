@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Stop: Agent 准备结束时强制跑全量校验。
-# 自动识别运行平台:
-#   - CodeBuddy (CLAUDE_PROJECT_DIR/CODEBUDDY_PROJECT_DIR): exit 2 + stderr → 阻止结束并注入反馈
-#   - Codex (无上述环境变量): JSON stdout + exit 0 → decision:block 阻止结束
+# 校验失败时输出 JSON {continue:false, reason:"精简摘要"} 到 stdout + exit 0，
+# 仅注入精简摘要到 AI 上下文，完整日志保留在文件中。
 set -uo pipefail
 
 # 自动定位项目根目录并构建 scripts/verify.sh 路径
@@ -36,27 +35,30 @@ if bash "$VERIFY_SCRIPT" >"$LOG_FILE" 2>&1; then
   exit 0
 fi
 
-# 校验未通过 — 生成失败内容
-FAIL_MSG="校验未通过，请根据以下错误修复后再结束："
-FAIL_DETAIL=$(cat "$LOG_FILE" 2>/dev/null || echo "无法读取日志")
+# 校验失败 — 生成精简摘要，避免全量日志注入 AI 上下文
 
-# 判断运行平台
-if [[ -n "${CODEBUDDY_PROJECT_DIR:-}" ]] || [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
-  # CodeBuddy / Claude Code: exit 2 + stderr
-  echo "$FAIL_MSG" >&2
-  echo "$FAIL_DETAIL" >&2
-  exit 2
-fi
-
-# Codex / OpenCode: exit 0 + JSON on stdout
-# 需要对 JSON 内容做转义
-REASON_JSON=$(echo "${FAIL_MSG}\n${FAIL_DETAIL}" | python3 -c "
-import sys, json
-text = sys.stdin.read().rstrip()
-print(json.dumps(text))
-" 2>/dev/null || echo '"校验未通过"')
-
-cat <<JSONEOF
-{"decision": "block", "reason": ${REASON_JSON}}
-JSONEOF
+python3 -c "
+import json
+log_path = '${LOG_FILE}'
+try:
+    with open(log_path) as f:
+        log = f.read()
+except Exception:
+    log = ''
+lines = [l.strip() for l in log.split('\n') if l.strip()]
+error_lines = [l for l in lines if any(k in l.lower() for k in ('error', 'fail', 'traceback'))]
+error_cnt = len(error_lines)
+# 摘取前几行错误
+sample = '; '.join((l[:120] + ('...' if len(l) > 120 else '')) for l in error_lines[:3])
+checks = []
+if 'ruff check' in log: checks.append('ruff')
+if 'mypy' in log: checks.append('mypy')
+if 'arch-check' in log: checks.append('arch-check')
+check_str = ', '.join(checks) if checks else '?'
+if sample:
+    reason = f'Python 校验被拦截 ({check_str}): {error_cnt} 条错误. {sample}. 日志: {log_path}'
+else:
+    reason = f'Python 校验被拦截 ({check_str}): {error_cnt} 条错误. 日志: {log_path}'
+print(json.dumps({'continue': False, 'reason': reason, 'systemMessage': f'Python 校验失败 ({error_cnt} errors). 完整日志: {log_path}'}))
+"
 exit 0
