@@ -3,7 +3,8 @@ name: hx-init
 description: >
   为当前项目配置 AI Coding 强约束。使用前必须扫描仓库并按用户环境定制方案,
   支持 Python/React、改造模式和 [init] 初始化模式。适用于 hx-init、强约束、
-  Claude/Codex hooks、AGENTS.md/CLAUDE.md、ruff/biome/lefthook/pre-commit 配置。
+  Claude/Codex hooks、Git commit message hook、AGENTS.md/CLAUDE.md、
+  ruff/biome/lefthook/pre-commit 配置。
 ---
 
 # hx-init
@@ -51,6 +52,7 @@ description: >
 - 将新增/修改/跳过的文件列表。
 - 将运行的安装命令和验证命令。
 - 严格度: changed-files、baseline、strict 三选一; 大项目默认 baseline。
+- 可选项: Git commit message hook (`[feat] xxx` / `[fix] xxx` 等), 默认不启用。
 
 必须让用户选择是否安装。若用户没有明确说"安装/初始化/应用", 只给提案不写盘。
 
@@ -71,6 +73,7 @@ description: >
 ### 5. 安装规则
 
 - `.agents/`、`.claude/`、`.codex/` 优先通过共享 `.agents` + 软链安装; 若目标路径已存在, 不覆盖, 改为合并配置或跳过。
+- Git commit-msg hook 是可选本地 Git hook; 用户确认后才写 `.git/hooks/commit-msg`, 已存在非 hx-init hook 时默认跳过。
 - Python 和 React 同时存在时, 合并 hook 列表: PostToolUse 可连续执行清理和对应 formatter; Stop hook 调用一个适配后的 verify 脚本或多个语言 verify。
 - 写 `.agents/.install-manifest.json`, 至少记录 `mode`, `created`, `modified`, `skipped`, `commands`, `logs`。
 - 配置文件不要整文件替换。优先使用结构化编辑; TOML/YAML/JSON 无可靠解析器时, 做清晰的局部 patch 并展示 diff。

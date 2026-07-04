@@ -17,6 +17,33 @@
 |------|----------|
 | `hooks/strip_emoji.sh` | `.agents/hooks/strip_emoji.sh` |
 | `hooks/clean_chars.sh` | `.agents/hooks/clean_chars.sh` |
+| `hooks/check_commit_msg.sh` | `.agents/hooks/check_commit_msg.sh` |
+| `hooks/install_commit_msg_hook.sh` | `.agents/hooks/install_commit_msg_hook.sh` |
+
+## 可选 Git commit-msg hook
+
+这个 hook 是 opt-in, 不默认安装。启用后, `git commit` 的第一行必须匹配:
+
+```text
+[type] subject
+```
+
+默认允许:
+
+```text
+feat fix docs style refactor perf test build ci chore revert release deps security
+```
+
+安装规则:
+
+- 安装前先询问用户是否启用。
+- 复制 `check_commit_msg.sh` 和 `install_commit_msg_hook.sh` 到 `.agents/hooks/`。
+- 运行 `bash .agents/hooks/install_commit_msg_hook.sh`。
+- 若已有非 hx-init 管理的 `.git/hooks/commit-msg`, 默认跳过, 不覆盖。
+- 用户明确要求替换时才运行 `bash .agents/hooks/install_commit_msg_hook.sh --force`。
+- 自定义类型可设置 `HX_COMMIT_TYPES="feat fix wip"`。
+
+失败时 hook 会阻止提交, 并提示用户用 `git commit -m "[feat] ..."` 或 `git commit --amend -m "[fix] ..."` 修正。
 
 ## 静态文件
 
