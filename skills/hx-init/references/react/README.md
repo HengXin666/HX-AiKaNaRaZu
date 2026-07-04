@@ -1,18 +1,33 @@
 # Web 前端配置(npm/Next/Vite/React 通用)
 
-## 核心原则: 审阅优先, 不做覆盖
+## 核心原则: 扫描优先, 审阅安装
 
-**所有配置文件采用审阅式安装**, 不直接覆盖:
+所有配置文件采用审阅式安装, 不直接覆盖:
 
 1. 先 `Read` 目标项目已有配置文件(package.json, lefthook.yml, biome.json, tsconfig.json)
 2. 分析已有内容
 3. 决定操作: **新增文件** / **添加 section** / **修改字段** / **跳过**
 4. 绝不做 `ln -s` 链接配置文件
 
+## 扫描清单
+
+- 包管理器: `pnpm-lock.yaml`, `yarn.lock`, `bun.lockb`/`bun.lock`, `package-lock.json`, workspace 配置。
+- 框架: Next/Vite/Remix/Astro/CRA, `src/`/`app/`/`pages/`/`packages/*`/`apps/*`。
+- 现有工具: ESLint, Biome, Prettier, TypeScript, Knip, lefthook, husky, lint-staged。
+- `package.json` scripts: `lint`, `format`, `typecheck`, `test`, `build`。
+- 规模和历史债: TS/JS 文件数、生成目录、是否已有大量 lint/typecheck 告警。
+
+适配优先级:
+
+1. 已有脚本优先: hook 调用 `package.json` 里稳定存在的脚本。
+2. 已有 formatter/linter 优先: ESLint/Prettier 项目不要强行换 Biome; Biome 项目不要再新增重复 ESLint 门禁。
+3. 包管理器一致: pnpm 项目用 `pnpm exec`/`pnpm add -D`, yarn 项目用 `yarn`, bun 项目用 `bun`/`bunx`, npm 项目才用 `npm`/`npx`。
+4. 大项目默认 baseline: Stop hook 给摘要和日志, 不要求一次修完整历史债。
+
 ## 模式
 
-- **init**: 全量(lefthook + hooks + rules + deps 安装建议)
-- **modify**: 仅 hooks(.agents/)+ deps 安装建议
+- **init**: 新分支提交初始化配置。可新增 lefthook/hook/rules/deps 建议, 但已有配置仍需审阅式 patch。
+- **modify**: 默认模式。优先 `.agents/` hooks 和规则; 工程级 hooks/deps 只在用户确认后安装。
 
 ## 工具链(三层门禁)
 
@@ -22,37 +37,61 @@
 | git pre-commit | biome + prettier | lefthook pre-commit |
 | git pre-push | tsc + knip | lefthook pre-push |
 
+如果项目已有 ESLint/Prettier/Husky/lint-staged, 这张表只是候选方案, 不是强制替换。
+
 ## 模板文件
 
 | 文件 | 目标 | 方式 |
 |------|------|------|
-| `lefthook.yml` | `lefthook.yml` | 审阅: 不存在则新建, 存在则对比差异、提示合并 |
-| `hooks.json` | `.agents/settings.json` | 直接写入(纯新增) |
-| `hooks-codex.json` | `.agents/hooks.json` | 直接写入(纯新增) |
-| `hooks/format_react.sh` | `.agents/hooks/format_react.sh` | 直接写入 |
-| `hooks/verify_react.sh` | `.agents/hooks/verify_react.sh` | 直接写入 |
-| `rules/architecture.md` | `.agents/rules/react-architecture.md` | 直接写入 |
-| `rules/naming.md` | `.agents/rules/react-ts-naming.md` | 直接写入 |
+| `lefthook.yml` | `lefthook.yml` | 审阅: 不存在则按包管理器渲染模板; 存在则对比差异、提示合并 |
+| `hooks.json` | `.agents/settings.json` | 不存在时新增; 存在时合并或跳过 |
+| `hooks-codex.json` | `.agents/hooks.json` | 不存在时新增; 存在时合并或跳过 |
+| `hooks/format_react.sh` | `.agents/hooks/format_react.sh` | 不存在时新增 |
+| `hooks/verify_react.sh` | `.agents/hooks/verify_react.sh` | 不存在时新增 |
+| `rules/architecture.md` | `.agents/rules/react-architecture.md` | 不存在时新增; 存在时跳过 |
+| `rules/naming.md` | `.agents/rules/react-ts-naming.md` | 不存在时新增; 存在时跳过 |
+
+`format_react.sh` 只处理本次工具写入的 JS/TS/JSON/CSS/Markdown 文件。`verify_react.sh` 只输出摘要, 完整日志写入 `.git/hx-init/logs/react-verify-latest.log` 或用户 cache。
 
 ## lefthook.yml 审阅规则
 
+模板中的 `{{PKG_EXEC}}` 必须按包管理器替换:
+
+- npm: `npx --no-install`
+- pnpm: `pnpm exec`
+- yarn: `yarn exec`
+- bun: `bunx`
+
 读已有 `lefthook.yml`, 检查是否已有 `pre-commit` / `pre-push`:
 
-- **不存在** → 直接写入模板内容
-- **存在但无 biome** → 在 `pre-commit.commands` 下追加 biome + prettier 段
-- **存在且已有 biome** → 跳过, 提示用户核对版本
-- **存在 pre-push** → 追加 typecheck + deadcode(如无)
+- **不存在** -> init 模式可写入模板; modify 模式先询问
+- **存在但无前端格式化** -> 按现有工具追加 biome 或 prettier/eslint 段
+- **存在且已有等价命令** -> 跳过, 不重复
+- **存在 pre-push** -> 仅在用户确认后追加 typecheck/deadcode; 大项目可先不启用 knip
 
 ## 依赖安装
 
-审阅 `package.json` 的 devDependencies, 按需建议安装:
+审阅 `package.json` 的 devDependencies 后再建议安装。命令按包管理器选择:
 
 ```bash
-# 核心
-npm install --save-dev @biomejs/biome prettier lefthook
-# 类型检查 + 死代码
-npm install --save-dev typescript knip
-# 初始化
-npx biome init
-npx lefthook install
+# npm
+npm install --save-dev @biomejs/biome prettier lefthook typescript knip
+
+# pnpm
+pnpm add -D @biomejs/biome prettier lefthook typescript knip
+
+# yarn
+yarn add -D @biomejs/biome prettier lefthook typescript knip
+
+# bun
+bun add -d @biomejs/biome prettier lefthook typescript knip
+```
+
+只安装缺失依赖。若项目已有 ESLint/Prettier 或已有 Biome, 不重复安装同类工具。
+
+验证失败时不要粘贴完整输出。查看详情:
+
+```bash
+sed -n '1,160p' "$(git rev-parse --git-path hx-init/logs)/react-verify-latest.log"
+rg -n "error|failed|warning|unused" "$(git rev-parse --git-path hx-init/logs)/react-verify-latest.log" | head -80
 ```

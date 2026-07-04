@@ -1,70 +1,97 @@
 ---
 name: hx-init
 description: >
-  为当前项目配置 AI Coding 强约束。支持 Python/React, 初始化/改造两种模式。
-  纯新增零副作用。触发词: hx-init, 强约束, 脚手架, ruff配置.
+  为当前项目配置 AI Coding 强约束。使用前必须扫描仓库并按用户环境定制方案,
+  支持 Python/React、改造模式和 [init] 初始化模式。适用于 hx-init、强约束、
+  Claude/Codex hooks、AGENTS.md/CLAUDE.md、ruff/biome/lefthook/pre-commit 配置。
 ---
 
 # hx-init
 
-你是 AI, 在当前工作目录配置强约束套件。
+你是 AI, 在当前工作目录配置强约束套件。目标是"适配这个项目", 不是复制模板。
 
-- Python: **纯新增**, 已存在文件不动
-- Web (React): **审阅式**, 先读已有配置, 再决定新增/追加/跳过(见 README)
-- 所有 `.sh` 写盘后 chmod 755
+## 不可跳过的原则
+
+- 先扫描, 再提案; 用户确认前不得安装。
+- 优先复用现有工具链、脚本、版本、包管理器和 CI; 只补缺口。
+- 已存在文件先读懂再最小 patch; 无法安全合并时跳过并说明。
+- `.agents/` 下新增文件可以纯新增; 工程配置文件必须审阅式修改。
+- hooks 不得把全量告警灌进上下文; 只输出摘要和日志路径。
+- 所有 `.sh` 写盘后 `chmod 755`。
 
 ## 流程
 
-### 0. 自动分析
+### 1. 读取必要参考
 
-扫描当前目录推断 `py_ver`、`src_dir`、项目类型(含 `.py` → Python, 有 `package.json`+`tsconfig.json` → React)。
+始终读 `references/_shared/README.md`。扫描后按需读:
 
-### 1. 三问
+- Python: `references/python/README.md`
+- React/Web: `references/react/README.md`
 
-用 AskUserQuestion 依次提问:
+### 2. 自动扫描
 
-**Q1 — 语言/框架**
+先收集事实, 不要先下结论:
 
-- Python(推荐)
-- React TS
-- Python + React
+- Git: 当前分支、`git status --short`、是否已有未提交改动。
+- 项目类型: `pyproject.toml`/`requirements*.txt`/`setup.cfg`/`.py`, `package.json`/`tsconfig.json`/锁文件。
+- 源码边界: `src/`, `app/`, `packages/*`, `apps/*`, `server/`, `client/`, tests 目录, monorepo workspace。
+- 现有工具: ruff/black/isort/mypy/pyright/ty/pytest/tox/nox/pre-commit; eslint/biome/prettier/tsc/knip/lefthook/husky/lint-staged。
+- 包管理器: uv/poetry/pdm/pip, npm/pnpm/yarn/bun, 从锁文件和脚本判断。
+- 规模风险: 文件数、明显生成目录、是否可能出现 10w+ 历史告警。
+- Agent 配置: `CLAUDE.md`, `AGENTS.md`, `.claude/`, `.codex/`, `.agents/` 是否已存在。
 
-**Q2 — 模式**
+可用命令示例: `git status --short --branch`, `rg --files`, `find . -maxdepth 3`, `python --version`, `node --version`, `uv --version`, `jq '.scripts' package.json`。不要在提案前跑全量 lint/typecheck。
 
-- 初始化 — 全量(pyproject/pre-commit/CI/hooks/rules)
-- 改造 — 仅 hooks + rules, 不碰已有 pyproject 等
+### 3. 生成安装提案并让用户选择
 
-**Q3 — 类型检查器**(仅 Q1 含 Python 时)
+输出一个短提案:
 
-- mypy(推荐) / ty(Astral 极速) / 跳过
+- 检测结果: 语言、源码目录、包管理器、已有质量工具、风险点。
+- 推荐模式: `modify` / `[init]` / custom, 以及理由。
+- 将新增/修改/跳过的文件列表。
+- 将运行的安装命令和验证命令。
+- 严格度: changed-files、baseline、strict 三选一; 大项目默认 baseline。
 
-### 2. 读取参考文件
+必须让用户选择是否安装。若用户没有明确说"安装/初始化/应用", 只给提案不写盘。
 
-始终读 `_shared/README.md`, 然后按 Q1 读各语言 README:
+### 4. 模式
 
-- `references/python/README.md`
-- `references/react/README.md`
+**modify (默认)**: 在现有项目上补 hooks/rules。只对缺失配置做最小 patch, 不强行启用会产生大量历史告警的规则。
 
-### 3. 组装 + 预览
+**[init]**: 用户明确要求"初始化"或写了 `[init]` 时使用。
 
-**共享**(`_shared/README.md`): 复制 hooks/rules/.gitignore + 6 个软链。
+1. 先检查 Git。若不是 Git 仓库, 询问是否 `git init`。
+2. 新建分支 `hx-init/<YYYYMMDD-HHMM>`。若工作区已有改动, 记录这些路径, 不要 stage 它们; 如无法区分, 先询问用户。
+3. 安装并运行必要的轻量验证。
+4. 只 stage 本次新增/修改的文件, 提交: `chore: initialize ai coding guardrails`。
+5. 提交后汇报告警摘要和日志路径, 询问用户哪些告警要继续修, 不要自动修完整历史债。
 
-**Python**(`python/README.md`): 动态模板替换占位符 + 静态文件复制。
+**custom**: 用户选定语言、工具或严格度时, 尊重用户选择; 若会破坏现有流程, 先指出风险再执行。
 
-**Web**(`react/README.md`): **先审阅**——Read 目标项目的 `package.json` / `lefthook.yml` / `biome.json` / `tsconfig.json`, 判断已有内容。`lefthook.yml` 不存在则新建, 存在则追加缺失 section(biome/prettier/typecheck/deadcode), 不覆盖已有。hooks 文件直接安装。展示差异预览让用户确认。
+### 5. 安装规则
 
-hooks.json 多语言时合并所有语言的 hook 列表。
+- `.agents/`、`.claude/`、`.codex/` 优先通过共享 `.agents` + 软链安装; 若目标路径已存在, 不覆盖, 改为合并配置或跳过。
+- Python 和 React 同时存在时, 合并 hook 列表: PostToolUse 可连续执行清理和对应 formatter; Stop hook 调用一个适配后的 verify 脚本或多个语言 verify。
+- 写 `.agents/.install-manifest.json`, 至少记录 `mode`, `created`, `modified`, `skipped`, `commands`, `logs`。
+- 配置文件不要整文件替换。优先使用结构化编辑; TOML/YAML/JSON 无可靠解析器时, 做清晰的局部 patch 并展示 diff。
+- 安装依赖前确认包管理器; 不要在 pnpm/yarn/bun 项目里直接使用 npm。
 
-### 4. 安装
+### 6. 告警和日志策略
 
-`.agents/` 下文件纯新增(`test -e` skip)。`lefthook.yml` / `pyproject.toml` 等工程配置按 README 审阅规则处理。写入 `.agents/.install-manifest.json`。
+- Stop hooks 必须把完整输出写入 `.git/hx-init/logs` 或用户 cache, 不污染工作区。
+- 注入给 AI 的内容只允许是摘要: 检查项、失败数量估计、前 3-5 条样例、日志路径、查看命令。
+- 面对 10w+ 告警, 先归类和抽样, 不要粘贴全量输出。
+- 需要查详情时, 使用 `sed -n`, `rg`, `head`, `tail` 针对日志文件定位; 一次读取不超过约 200 行。
 
-### 5. 安装后
+### 7. 安装后
 
-**Python**: `uv sync && uv run pre-commit install`
-**Web**: `npm install --save-dev @biomejs/biome prettier lefthook typescript knip && npx biome init && npx lefthook install`
-**共用**: 对全仓库去一次存量空白字符
+根据提案运行命令。若验证失败, 只汇报摘要和下一步选择:
+
+- 修本次引入的问题
+- 建立 baseline 后继续
+- 暂时降低严格度
+- 用户指定某类告警继续修
 
 ## 扩展
 
-加新语言: `references/` 下新建目录 → 写 README.md + 模板 → Q1 加选项。
+加新语言: `references/` 下新建目录 -> 写参考说明和模板 -> 在本文件的扫描和安装规则中加入选择逻辑。

@@ -1,10 +1,29 @@
 #!/usr/bin/env bash
-# Stop: Agent 准备结束时强制跑全量校验。
-# 校验失败时输出 JSON {continue:false, reason:"精简摘要"} 到 stdout + exit 0，
-# 仅注入精简摘要到 AI 上下文，完整日志保留在文件中。
+# Stop: Agent 准备结束时跑校验。
+# 失败时只输出精简 JSON 摘要; 完整日志写入 .git/hx-init/logs 或用户 cache。
 set -uo pipefail
+HOOK_INPUT="$(cat || true)"
+PYTHON_BIN="$(command -v python3 || command -v python || true)"
 
-# 自动定位项目根目录并构建 scripts/verify.sh 路径
+is_stop_hook_active() {
+  if [[ -z "$PYTHON_BIN" ]]; then
+    grep -qE '"stop_hook_active"[[:space:]]*:[[:space:]]*true' <<<"$HOOK_INPUT"
+    return $?
+  fi
+  HOOK_INPUT="$HOOK_INPUT" "$PYTHON_BIN" - <<'PY'
+import json
+import os
+import sys
+
+try:
+    data = json.loads(os.environ.get("HOOK_INPUT", "") or "{}")
+except json.JSONDecodeError:
+    data = {}
+
+sys.exit(0 if data.get("stop_hook_active") is True else 1)
+PY
+}
+
 if [[ -n "${CODEBUDDY_PROJECT_DIR:-}" ]]; then
   PROJECT_DIR="${CODEBUDDY_PROJECT_DIR}"
 elif [[ -n "${CLAUDE_PROJECT_DIR:-}" ]]; then
@@ -13,52 +32,113 @@ else
   PROJECT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")"
 fi
 
+if is_stop_hook_active; then
+  exit 0
+fi
+
+log_dir() {
+  if git -C "$PROJECT_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    local git_path
+    git_path="$(git -C "$PROJECT_DIR" rev-parse --git-path hx-init/logs)"
+    case "$git_path" in
+      /*) echo "$git_path" ;;
+      *) echo "$PROJECT_DIR/$git_path" ;;
+    esac
+  else
+    local key
+    key="$(printf '%s' "$PROJECT_DIR" | cksum | awk '{print $1}')"
+    echo "${XDG_CACHE_HOME:-$HOME/.cache}/hx-init/logs/${key}"
+  fi
+}
+
 VERIFY_SCRIPT="${PROJECT_DIR}/scripts/verify.sh"
+LOG_DIR="$(log_dir)"
+mkdir -p "$LOG_DIR"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="${LOG_DIR}/python-verify-${STAMP}.log"
+LATEST_LOG="${LOG_DIR}/python-verify-latest.log"
+SUMMARY_FILE="${LOG_DIR}/python-verify-latest.summary.txt"
 
-# 如果 verify.sh 不存在或 uv 不可用，直接放行
 if [[ ! -f "$VERIFY_SCRIPT" ]]; then
-  echo "[hooks] scripts/verify.sh 不存在，跳过校验" >&2
+  echo "[hooks] scripts/verify.sh missing; skip python verification" >&2
   exit 0
 fi
 
-if ! command -v uv &>/dev/null; then
-  echo "[hooks] uv 未安装，跳过校验" >&2
-  exit 0
-fi
-
-# 运行校验
 cd "$PROJECT_DIR"
-LOG_FILE="/tmp/cc_verify.log"
 
 if bash "$VERIFY_SCRIPT" >"$LOG_FILE" 2>&1; then
-  # 校验通过，放行
+  cp "$LOG_FILE" "$LATEST_LOG" 2>/dev/null || true
   exit 0
 fi
 
-# 校验失败 — 生成精简摘要，避免全量日志注入 AI 上下文
+cp "$LOG_FILE" "$LATEST_LOG" 2>/dev/null || true
 
-python3 -c "
+if [[ -z "$PYTHON_BIN" ]]; then
+  escaped_log="$(printf '%s' "$LATEST_LOG" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+  printf '{"decision":"block","reason":"Python verification failed. Full log: %s"}\n' "$escaped_log"
+  exit 0
+fi
+
+"$PYTHON_BIN" - "$LATEST_LOG" "$SUMMARY_FILE" <<'PY'
 import json
-log_path = '${LOG_FILE}'
-try:
-    with open(log_path) as f:
-        log = f.read()
-except Exception:
-    log = ''
-lines = [l.strip() for l in log.split('\n') if l.strip()]
-error_lines = [l for l in lines if any(k in l.lower() for k in ('error', 'fail', 'traceback'))]
-error_cnt = len(error_lines)
-# 摘取前几行错误
-sample = '; '.join((l[:120] + ('...' if len(l) > 120 else '')) for l in error_lines[:3])
+import re
+import sys
+from pathlib import Path
+
+log_path = Path(sys.argv[1])
+summary_path = Path(sys.argv[2])
+patterns = re.compile(r"(error|failed|failure|traceback|warning|unused|invalid)", re.I)
 checks = []
-if 'ruff check' in log: checks.append('ruff')
-if 'mypy' in log: checks.append('mypy')
-if 'arch-check' in log: checks.append('arch-check')
-check_str = ', '.join(checks) if checks else '?'
-if sample:
-    reason = f'Python 校验被拦截 ({check_str}): {error_cnt} 条错误. {sample}. 日志: {log_path}'
-else:
-    reason = f'Python 校验被拦截 ({check_str}): {error_cnt} 条错误. 日志: {log_path}'
-print(json.dumps({'continue': False, 'reason': reason, 'systemMessage': f'Python 校验失败 ({error_cnt} errors). 完整日志: {log_path}'}))
-"
+samples = []
+matched = 0
+total = 0
+max_samples = 5
+
+try:
+    with log_path.open(encoding="utf-8", errors="replace") as f:
+        for raw in f:
+            total += 1
+            line = raw.strip()
+            if line.startswith("==>"):
+                checks.append(line.replace("==>", "").strip())
+            if patterns.search(line):
+                matched += 1
+                if len(samples) < max_samples:
+                    samples.append(line[:220])
+except OSError:
+    pass
+
+check_text = ", ".join(checks[:6]) if checks else "scripts/verify.sh"
+detail_cmd = (
+    f"sed -n '1,160p' {log_path}; "
+    f"rg -n 'error|failed|Traceback|warning|unused' {log_path} | head -80"
+)
+sample_text = " | ".join(samples[:3])
+reason = (
+    f"Python verification failed. checks={check_text}; matched_lines={matched}; "
+    f"total_log_lines={total}; log={log_path}; details: {detail_cmd}"
+)
+if sample_text:
+    reason = f"{reason}; samples: {sample_text}"
+
+summary = [
+    "Python verification failed",
+    f"checks: {check_text}",
+    f"matched lines: {matched}",
+    f"total log lines: {total}",
+    f"log: {log_path}",
+    "detail commands:",
+    f"  sed -n '1,160p' {log_path}",
+    f"  rg -n 'error|failed|Traceback|warning|unused' {log_path} | head -80",
+    "samples:",
+]
+summary.extend(f"  {s}" for s in samples)
+summary_path.write_text("\n".join(summary) + "\n", encoding="utf-8")
+
+print(json.dumps({
+    "decision": "block",
+    "reason": reason[:1800],
+    "systemMessage": f"Python verification failed; summary={summary_path}; log={log_path}",
+}, ensure_ascii=False))
+PY
 exit 0

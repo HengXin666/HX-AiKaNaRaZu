@@ -6,16 +6,16 @@ pre-commit:
   commands:
     biome:
       glob: "*.{ts,tsx,js,jsx,json}"
-      run: npx @biomejs/biome check --write --no-errors-on-unmatched {staged_files}
+      run: "{{PKG_EXEC}} biome check --write --no-errors-on-unmatched {staged_files}"
       stage_fixed: true
     prettier:
       glob: "*.{md,yml,yaml,css,scss}"
-      run: npx prettier --write --ignore-unknown {staged_files}
+      run: "{{PKG_EXEC}} prettier --write --ignore-unknown {staged_files}"
       stage_fixed: true
 
 pre-push:
   commands:
     typecheck:
-      run: npx tsc --noEmit
+      run: "{{PKG_EXEC}} tsc --noEmit"
     deadcode:
-      run: npx knip --no-progress
+      run: "{{PKG_EXEC}} knip --no-progress"

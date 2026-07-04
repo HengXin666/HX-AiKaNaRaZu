@@ -14,8 +14,8 @@ repos:
         pass_filenames: false
         always_run: true
       - id: arch-check
-        name: arch-check (300行/文件数/_前缀/中文命名)
-        entry: uv run python scripts/check_arch.py {{SRC_DIR}}
+        name: arch-check advisory (300行/文件数/_前缀/中文命名)
+        entry: {{PYTHON_RUN}} scripts/check_arch.py {{SRC_DIR}}
         language: system
         pass_filenames: false
         always_run: true

@@ -1,8 +1,9 @@
 # React TS 命名与类型规则 (按需加载)
 
-## 类型安全 (强制)
-- tsconfig strict: true (涵盖 noImplicitAny / strictNullChecks / noUncheckedIndexedAccess 等)。
-- 禁止 `any` (eslint no-explicit-any: error)。
+## 类型安全
+- 新项目 strict: tsconfig strict: true (涵盖 noImplicitAny / strictNullChecks / noUncheckedIndexedAccess 等)。
+- 既有项目: 不降低现有 strictness; 对本次新增/修改代码避免引入 `any`。
+- strict 模式可禁止 `any` (eslint no-explicit-any: error)。
   例外: 第三方库类型缺失时 `// eslint-disable-next-line no-explicit-any` + 注明原因。
 - OK: `function parse(raw: string): Record<string, number> { ... }`
 - NG: `function parse(raw: any): any { ... }`
@@ -45,8 +46,8 @@
 - barrel (index.ts): 只 re-export 公共 API, 未导出 = 私有。
 - 禁止 `export *` — 不可控, 易泄露实现细节。
 
-## 路径别名 (强制)
-- tsconfig paths 配置 `@/` 映射 `src/`, 禁止 `../../../` 深层相对路径:
+## 路径别名
+- 新项目可配置 `@/` 映射 `src/`, 避免 `../../../` 深层相对路径:
     // tsconfig.json
     { "compilerOptions": { "paths": { "@/*": ["./src/*"] } } }
 - 子别名按需: `@features/*`, `@components/*`, `@hooks/*`, `@utils/*`。

@@ -1,23 +1,26 @@
 """架构静态检查: 行数 / 目录文件数 / _前缀越界 / 中文命名。
 
-对应 Ruff 无原生规则或需强化的约束 (返回非0即 fail):
+对应 Ruff 无原生规则或需强化的约束:
 1. 单 .py <= 300 行
 2. 目录内 .py 数量 2~5 (不含 __init__.py)
 3. 公开文件 (非 impl/) 禁止 def _xxx
 4. 禁止中文/非ASCII 标识符 (对付 AI 幻觉, 与 Ruff PLC2401 互补)
 
-用法: python check_arch.py <root_dir> [root_dir ...]
+默认 advisory: 输出摘要但返回 0。显式传 --strict 才返回非 0。
+用法: python check_arch.py [--strict] [--max-output N] <root_dir> [root_dir ...]
 """
 
 from __future__ import annotations
 
 import ast
+import argparse
 import sys
 from pathlib import Path
 
 MAX_LINES: int = 300
 MIN_PY_PER_DIR: int = 2
 MAX_PY_PER_DIR: int = 5
+DEFAULT_MAX_OUTPUT: int = 80
 SKIP_DIRS: frozenset[str] = frozenset(
     {
         ".git",
@@ -128,11 +131,13 @@ def check_chinese_names(files: list[Path]) -> list[str]:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
-        print("用法: python check_arch.py <root_dir> [root_dir ...]", file=sys.stderr)
-        return 1
+    parser = argparse.ArgumentParser(description="Architecture advisory/strict checker")
+    parser.add_argument("--strict", action="store_true", help="return non-zero when violations exist")
+    parser.add_argument("--max-output", type=int, default=DEFAULT_MAX_OUTPUT, help="max findings to print")
+    parser.add_argument("root_dir", nargs="+")
+    args = parser.parse_args()
 
-    targets: list[Path] = [Path(a).resolve() for a in sys.argv[1:]]
+    targets: list[Path] = [Path(a).resolve() for a in args.root_dir]
     files: list[Path] = []
     for t in targets:
         if not t.is_dir():
@@ -150,10 +155,17 @@ def main() -> int:
 
     scanned_dirs: str = ", ".join(str(t) for t in targets)
     if errors:
+        shown = errors[: max(args.max_output, 0)]
+        omitted = len(errors) - len(shown)
+        mode = "FAIL" if args.strict else "WARN"
         print(
-            f"FAIL 架构检查未通过 (扫描: {scanned_dirs}):\n" + "\n".join(f"  - {e}" for e in errors)
+            f"{mode} 架构检查发现 {len(errors)} 个问题 (扫描: {scanned_dirs}, "
+            f"mode={'strict' if args.strict else 'advisory'}):\n"
+            + "\n".join(f"  - {e}" for e in shown)
         )
-        return 1
+        if omitted > 0:
+            print(f"  ... 省略 {omitted} 个问题; 使用 --max-output 调整输出上限")
+        return 1 if args.strict else 0
     print(f"PASS arch-check ({len(files)} 个文件, 扫描: {scanned_dirs})")
     return 0
 

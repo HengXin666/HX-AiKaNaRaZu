@@ -23,18 +23,6 @@
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo \"$CLAUDE_TOOL_INPUT\" | grep -qiE 'rm\\s+-rf|drop\\s+table|truncate' && exit 2 || exit 0",
-            "timeout": 5,
-            "statusMessage": ""  }
-        ]
-      }
-    ],
     "Stop": [
       {
         "hooks": [

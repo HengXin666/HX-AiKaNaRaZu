@@ -1,6 +1,15 @@
 # 通用配置（所有语言共享）
 
-以下文件对所有语言类型都生效，始终安装。
+以下文件对所有语言类型都生效, 但仍然要先扫描并让用户确认。不要在用户确认前写盘。
+
+## 安装策略
+
+- `.agents/` 是共享源: Claude 和 Codex 通过软链复用同一份规则和 hooks。
+- 已存在的真实文件不覆盖。若已有 `.claude/settings.json` 或 `.codex/hooks.json`, 先读内容, 再选择合并、跳过或提示用户。
+- 软链只在目标路径不存在时创建; 若目标路径存在但指向不同, 不强改。
+- 写 `.agents/.install-manifest.json`, 记录本次 `created`, `modified`, `skipped`, `commands`, `logs`。
+- 大项目默认 baseline: hooks 只给摘要, 完整日志进 `.git/hx-init/logs` 或用户 cache。
+- 兼容旧版本时, 将 `.agents/logs/` 加入 `.gitignore`, 防止历史 hook 日志污染工作区。
 
 ## hooks
 
@@ -13,7 +22,7 @@
 
 | 文件 | 目标路径 | 模式 |
 |------|----------|------|
-| `.gitignore` | `.gitignore` | init |
+| `.gitignore` | `.gitignore` | init 时审阅式合并; modify 时通常跳过 |
 
 ## 软链（始终创建）
 
@@ -26,3 +35,14 @@ AGENTS.md → CLAUDE.md
 .codex/hooks.json → ../.agents/hooks.json
 .codex/hooks → ../.agents/hooks
 ```
+
+## 用户确认预览
+
+安装前展示:
+
+- 检测到的语言、包管理器、源码目录、已有工具。
+- 将创建、将修改、将跳过的路径。
+- 将执行的命令。
+- hooks 的严格度和日志位置。
+
+用户没有明确确认时, 只输出提案。
