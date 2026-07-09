@@ -3,21 +3,23 @@ set -euo pipefail
 
 REPO_URL="${HX_AIKANARAZU_REPO:-https://github.com/HengXin666/HX-AiKaNaRaZu.git}"
 REF="${HX_AIKANARAZU_REF:-main}"
-SKILL_PATH="skills/hx-init"
+SKILL_NAME="hx-init"
 SCOPE="global"
 FORCE=0
 
 usage() {
   cat <<'EOF'
 Usage:
-  ./install.sh [--global|--project] [--force] [--repo URL] [--ref REF]
+  ./install.sh [--global|--project] [--force] [--skill NAME] [--repo URL] [--ref REF]
+  ./install.sh hx-libs-sentaku [--global|--project] [--force]
 
-Installs hx-init for Codex.
+Installs a HX-AiKaNaRaZu skill for Codex.
 
 Options:
-  --global      Install to ${CODEX_HOME:-$HOME/.codex}/skills/hx-init (default)
-  --project     Install to ./.codex/skills/hx-init for the current repository
-  --force       Replace an existing hx-init install
+  --global      Install to ${CODEX_HOME:-$HOME/.codex}/skills/NAME (default)
+  --project     Install to ./.codex/skills/NAME for the current repository
+  --skill NAME  Skill to install: hx-init or hx-libs-sentaku (default: hx-init)
+  --force       Replace an existing skill install
   --repo URL    Git repository URL to install from when not run inside a checkout
   --ref REF     Git branch/tag/commit to install from (default: main)
 EOF
@@ -37,6 +39,10 @@ while [[ $# -gt 0 ]]; do
       FORCE=1
       shift
       ;;
+    --skill)
+      SKILL_NAME="${2:?missing value for --skill}"
+      shift 2
+      ;;
     --repo)
       REPO_URL="${2:?missing value for --repo}"
       shift 2
@@ -49,6 +55,10 @@ while [[ $# -gt 0 ]]; do
       usage
       exit 0
       ;;
+    hx-init|hx-libs-sentaku)
+      SKILL_NAME="$1"
+      shift
+      ;;
     *)
       echo "Unknown option: $1" >&2
       usage >&2
@@ -57,12 +67,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+case "$SKILL_NAME" in
+  hx-init|hx-libs-sentaku)
+    ;;
+  *)
+    echo "Unsupported skill: $SKILL_NAME" >&2
+    echo "Supported skills: hx-init, hx-libs-sentaku" >&2
+    exit 2
+    ;;
+esac
+
+SKILL_PATH="skills/$SKILL_NAME"
+
 if [[ "$SCOPE" = "global" ]]; then
   DEST_ROOT="${CODEX_HOME:-$HOME/.codex}/skills"
 else
   DEST_ROOT="$PWD/.codex/skills"
 fi
-DEST="$DEST_ROOT/hx-init"
+DEST="$DEST_ROOT/$SKILL_NAME"
 
 TMP_DIR=""
 cleanup() {
@@ -102,7 +124,7 @@ fi
 
 if [[ -e "$DEST" ]]; then
   if [[ "$FORCE" -ne 1 ]]; then
-    echo "hx-init is already installed at $DEST"
+    echo "$SKILL_NAME is already installed at $DEST"
     echo "No changes made. Re-run with --force to replace it."
     exit 0
   fi
@@ -110,13 +132,13 @@ if [[ -e "$DEST" ]]; then
 fi
 
 mkdir -p "$DEST_ROOT"
-TMP_DEST="$DEST_ROOT/.hx-init.tmp.$$"
+TMP_DEST="$DEST_ROOT/.$SKILL_NAME.tmp.$$"
 rm -rf "$TMP_DEST"
 cp -R "$SOURCE_SKILL" "$TMP_DEST"
 find "$TMP_DEST" -type f -name '*.sh' -exec chmod 755 {} +
 mv "$TMP_DEST" "$DEST"
 
-echo "Installed hx-init -> $DEST"
+echo "Installed $SKILL_NAME -> $DEST"
 if [[ "$SCOPE" = "project" ]]; then
-  echo "Project install is ready to commit: git add .codex/skills/hx-init"
+  echo "Project install is ready to commit: git add .codex/skills/$SKILL_NAME"
 fi

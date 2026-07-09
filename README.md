@@ -25,6 +25,18 @@ git add .codex/skills/hx-init
 curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash -s -- --force
 ```
 
+安装 `hx-libs-sentaku`：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash -s -- --skill hx-libs-sentaku
+```
+
+也可以使用简写：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash -s -- hx-libs-sentaku
+```
+
 也可以基于 Git 本地安装：
 
 ```bash
@@ -73,6 +85,12 @@ skills/
     references/
       _shared/
       python/
+      react/
+  hx-libs-sentaku/
+    SKILL.md
+    references/
+      db/
+      py/
       react/
 ```
 
