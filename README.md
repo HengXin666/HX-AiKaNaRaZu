@@ -70,10 +70,11 @@ cd HX-AiKaNaRaZu
 
 | 类别 | 内容 |
 |---|---|
-| Agent 入口 | `CLAUDE.md`、`AGENTS.md`、`.agents/rules/*.md` |
+| Agent 入口 | `.agents/rules/*.md` |
 | Claude/Codex hooks | `.agents/hooks/*.sh`、`.agents/settings.json`、`.agents/hooks.json`，并软链到 `.claude/` 和 `.codex/` |
 | 可选 Git hook | `commit-msg` 检查，要求提交信息形如 `[feat] add installer` |
-| Python 校验 | `pyproject.toml`、`.pre-commit-config.yaml`、`scripts/verify.sh`、`scripts/check_arch.py`、CI |
+| GitHub Actions | `.github/workflows/ci.yml` 或审阅式合并已有 workflow |
+| Python 校验 | `pyproject.toml`、`.pre-commit-config.yaml`、`scripts/verify.sh`、`scripts/check_arch.py` |
 | React 校验 | `lefthook.yml`、Biome/Prettier/TypeScript/Knip hooks 和规则 |
 
 ## 目录

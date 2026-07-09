@@ -14,7 +14,7 @@ Python 安装必须适配现有工程。先扫描, 再决定要新增、局部 p
 
 ## 模式
 
-- **init**: 新分支提交初始化配置。可新增缺失的 pyproject/pre-commit/CI/hooks/rules, 但已有文件仍需审阅式 patch。
+- **init**: 新分支提交初始化配置。可新增缺失的 pyproject/pre-commit/GitHub Actions workflow/hooks/rules, 但已有文件仍需审阅式 patch。
 - **modify**: 默认模式。优先 hooks + rules + 必要 verify; 不强行改 `pyproject.toml` 或 CI。
 
 ## 适配规则
@@ -64,10 +64,16 @@ Python 安装必须适配现有工程。先扫描, 再决定要新增、局部 p
 
 | 文件 | 目标 | 模式 |
 |------|------|------|
-| `CLAUDE.md` | `CLAUDE.md` | init |
 | `check_arch.py` | `scripts/check_arch.py` | 始终; 默认 advisory |
 | `rules/architecture.md` | `.agents/rules/architecture.md` | 始终 |
 | `rules/naming.md` | `.agents/rules/naming.md` | 始终 |
+
+## GitHub Actions workflow
+
+- 没有 `.github/workflows/*.yml` 时, 使用 `ci.yml` 渲染 `.github/workflows/ci.yml`。
+- 已有 workflow 时, 先读取并判断是否已经运行 lint/test/verify; 已覆盖则跳过。
+- 需要合并时只追加缺失的 verify 步骤, 不整文件替换。
+- 非 GitHub 项目或用户明确不要 CI 时跳过, 并写入 manifest 的 `skipped`。
 
 ## 安装后
 

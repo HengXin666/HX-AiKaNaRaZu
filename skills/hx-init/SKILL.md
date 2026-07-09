@@ -3,7 +3,7 @@ name: hx-init
 description: >
   为当前项目配置 AI Coding 强约束。使用前必须扫描仓库并按用户环境定制方案,
   支持 Python/React、改造模式和 [init] 初始化模式。适用于 hx-init、强约束、
-  Claude/Codex hooks、Git commit message hook、AGENTS.md/CLAUDE.md、
+  Claude/Codex hooks、Git commit message hook、GitHub Actions workflow、
   ruff/biome/lefthook/pre-commit 配置。
 ---
 
@@ -39,7 +39,8 @@ description: >
 - 现有工具: ruff/black/isort/mypy/pyright/ty/pytest/tox/nox/pre-commit; eslint/biome/prettier/tsc/knip/lefthook/husky/lint-staged。
 - 包管理器: uv/poetry/pdm/pip, npm/pnpm/yarn/bun, 从锁文件和脚本判断。
 - 规模风险: 文件数、明显生成目录、是否可能出现 10w+ 历史告警。
-- Agent 配置: `CLAUDE.md`, `AGENTS.md`, `.claude/`, `.codex/`, `.agents/` 是否已存在。
+- Agent 配置: `.claude/`, `.codex/`, `.agents/` 是否已存在; 不再生成根目录 `CLAUDE.md` / `AGENTS.md`。
+- CI 配置: `.github/workflows/` 是否存在, 是否已有 lint/test/verify workflow。
 
 可用命令示例: `git status --short --branch`, `rg --files`, `find . -maxdepth 3`, `python --version`, `node --version`, `uv --version`, `jq '.scripts' package.json`。不要在提案前跑全量 lint/typecheck。
 
@@ -51,6 +52,7 @@ description: >
 - 推荐模式: `modify` / `[init]` / custom, 以及理由。
 - 将新增/修改/跳过的文件列表。
 - 将运行的安装命令和验证命令。
+- 将新增/合并/跳过的 GitHub Actions workflow。
 - 严格度: changed-files、baseline、strict 三选一; 大项目默认 baseline。
 - 可选项: Git commit message hook (`[feat] xxx` / `[fix] xxx` 等), 默认不启用。
 
@@ -73,6 +75,8 @@ description: >
 ### 5. 安装规则
 
 - `.agents/`、`.claude/`、`.codex/` 优先通过共享 `.agents` + 软链安装; 若目标路径已存在, 不覆盖, 改为合并配置或跳过。
+- 不生成根目录 `CLAUDE.md` / `AGENTS.md`; 规则入口放在 `.agents/rules/`, hooks 入口放在 `.agents/` 并按需软链到 `.claude/`、`.codex/`。
+- GitHub Actions workflow 是 hx-init 的标准安装项: 没有 workflow 时按语言模板新增 `.github/workflows/ci.yml`; 已有 workflow 时审阅式合并 verify/lint/test 步骤或跳过, 不整文件替换。
 - Git commit-msg hook 是可选本地 Git hook; 用户确认后才写 `.git/hooks/commit-msg`, 已存在非 hx-init hook 时默认跳过。
 - Python 和 React 同时存在时, 合并 hook 列表: PostToolUse 可连续执行清理和对应 formatter; Stop hook 调用一个适配后的 verify 脚本或多个语言 verify。
 - 写 `.agents/.install-manifest.json`, 至少记录 `mode`, `created`, `modified`, `skipped`, `commands`, `logs`。

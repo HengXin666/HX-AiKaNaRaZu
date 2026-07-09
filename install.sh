@@ -103,10 +103,14 @@ script_dir() {
   cd -P "$(dirname "$source")" >/dev/null 2>&1 && pwd
 }
 
-SOURCE_ROOT="$(script_dir)"
-SOURCE_SKILL="$SOURCE_ROOT/$SKILL_PATH"
+SOURCE_SKILL=""
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-}"
+if [[ -n "$SCRIPT_SOURCE" && -f "$SCRIPT_SOURCE" ]]; then
+  SOURCE_ROOT="$(script_dir)"
+  SOURCE_SKILL="$SOURCE_ROOT/$SKILL_PATH"
+fi
 
-if [[ ! -f "$SOURCE_SKILL/SKILL.md" ]]; then
+if [[ -z "$SOURCE_SKILL" || ! -f "$SOURCE_SKILL/SKILL.md" ]]; then
   command -v git >/dev/null 2>&1 || {
     echo "git is required when installing without a local checkout." >&2
     exit 1

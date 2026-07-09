@@ -26,7 +26,7 @@
 
 ## 模式
 
-- **init**: 新分支提交初始化配置。可新增 lefthook/hook/rules/deps 建议, 但已有配置仍需审阅式 patch。
+- **init**: 新分支提交初始化配置。可新增 GitHub Actions workflow/lefthook/hook/rules/deps 建议, 但已有配置仍需审阅式 patch。
 - **modify**: 默认模式。优先 `.agents/` hooks 和规则; 工程级 hooks/deps 只在用户确认后安装。
 
 ## 工具链(三层门禁)
@@ -44,6 +44,7 @@
 | 文件 | 目标 | 方式 |
 |------|------|------|
 | `lefthook.yml` | `lefthook.yml` | 审阅: 不存在则按包管理器渲染模板; 存在则对比差异、提示合并 |
+| `ci.yml` | `.github/workflows/ci.yml` | 审阅: 不存在则按包管理器渲染模板; 存在则只追加缺失 verify 步骤 |
 | `hooks.json` | `.agents/settings.json` | 不存在时新增; 存在时合并或跳过 |
 | `hooks-codex.json` | `.agents/hooks.json` | 不存在时新增; 存在时合并或跳过 |
 | `hooks/format_react.sh` | `.agents/hooks/format_react.sh` | 不存在时新增 |
@@ -68,6 +69,22 @@
 - **存在但无前端格式化** -> 按现有工具追加 biome 或 prettier/eslint 段
 - **存在且已有等价命令** -> 跳过, 不重复
 - **存在 pre-push** -> 仅在用户确认后追加 typecheck/deadcode; 大项目可先不启用 knip
+
+## GitHub Actions workflow
+
+模板中的 `{{NODE_CACHE_LINE}}` / `{{INSTALL_CMD}}` / `{{VERIFY_CMD}}` 必须按包管理器和项目已有 scripts 替换:
+
+- npm: `npm ci`, `npm run verify` 或已有 `lint`/`typecheck`/`test` 组合
+- pnpm: `pnpm install --frozen-lockfile`, `pnpm run verify` 或已有脚本组合
+- yarn: `yarn install --frozen-lockfile`, `yarn verify` 或已有脚本组合
+- bun: `bun install --frozen-lockfile`, `bun run verify` 或已有脚本组合
+- `{{NODE_CACHE_LINE}}`: npm/pnpm/yarn 渲染为 `cache: "npm"` / `cache: "pnpm"` / `cache: "yarn"`; bun 删除该行。
+
+读已有 workflow, 检查是否已覆盖 install + lint/typecheck/test/build:
+
+- **不存在 workflow** -> init 模式可写入模板; modify 模式先询问
+- **存在但无前端验证** -> 审阅式追加一个 job 或步骤
+- **存在且已有等价命令** -> 跳过, 不重复
 
 ## 依赖安装
 

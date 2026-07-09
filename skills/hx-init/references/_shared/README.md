@@ -7,7 +7,9 @@
 - `.agents/` 是共享源: Claude 和 Codex 通过软链复用同一份规则和 hooks。
 - 已存在的真实文件不覆盖。若已有 `.claude/settings.json` 或 `.codex/hooks.json`, 先读内容, 再选择合并、跳过或提示用户。
 - 软链只在目标路径不存在时创建; 若目标路径存在但指向不同, 不强改。
+- 不生成根目录 `CLAUDE.md` / `AGENTS.md`; 不创建根目录 agent 入口软链。
 - 写 `.agents/.install-manifest.json`, 记录本次 `created`, `modified`, `skipped`, `commands`, `logs`。
+- GitHub Actions workflow 是标准安装项。若 `.github/workflows/` 不存在, 创建语言对应的 `ci.yml`; 若已存在 workflow, 只做审阅式合并或跳过。
 - 大项目默认 baseline: hooks 只给摘要, 完整日志进 `.git/hx-init/logs` 或用户 cache。
 - 兼容旧版本时, 将 `.agents/logs/` 加入 `.gitignore`, 防止历史 hook 日志污染工作区。
 
@@ -54,7 +56,6 @@ feat fix docs style refactor perf test build ci chore revert release deps securi
 ## 软链（始终创建）
 
 ```
-AGENTS.md → CLAUDE.md
 .claude/settings.json → ../.agents/settings.json
 .claude/rules → ../.agents/rules
 .claude/hooks.json → ../.agents/hooks.json
