@@ -74,8 +74,9 @@ description: >
 
 ### 5. 安装规则
 
-- `.agents/`、`.claude/`、`.codex/` 优先通过共享 `.agents` + 软链安装; 若目标路径已存在, 不覆盖, 改为合并配置或跳过。
-- 不生成根目录 `CLAUDE.md` / `AGENTS.md`; 规则入口放在 `.agents/rules/`, hooks 入口放在 `.agents/` 并按需软链到 `.claude/`、`.codex/`。
+- 禁止创建软链接安装配置。不得使用 `ln -s`、符号链接、硬链接或链接式复制来安装 `.agents/`、`.claude/`、`.codex/` 下的文件。
+- `.agents/`、`.claude/`、`.codex/` 下需要的规则、hooks、JSON 配置必须写成真实实体文件。已有文件必须先读取, 再由 AI 审阅式手动补充缺失内容; 不覆盖、不整文件替换、不用软链绕过合并。
+- 不生成根目录 `CLAUDE.md` / `AGENTS.md`; 规则入口和 hooks 入口按目标 agent 分别落到对应目录的实体文件中。若同一内容需要给 Claude 和 Codex 复用, 分别写入 `.claude/` 和 `.codex/` 的真实文件, 并在 manifest 记录来源和差异。
 - GitHub Actions workflow 是 hx-init 的标准安装项: 没有 workflow 时按语言模板新增 `.github/workflows/ci.yml`; 已有 workflow 时审阅式合并 verify/lint/test 步骤或跳过, 不整文件替换。
 - Git commit-msg hook 是可选本地 Git hook; 用户确认后才写 `.git/hooks/commit-msg`, 已存在非 hx-init hook 时默认跳过。
 - Python 和 React 同时存在时, 合并 hook 列表: PostToolUse 可连续执行清理和对应 formatter; Stop hook 调用一个适配后的 verify 脚本或多个语言 verify。

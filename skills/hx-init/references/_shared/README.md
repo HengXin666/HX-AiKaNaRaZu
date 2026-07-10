@@ -4,10 +4,10 @@
 
 ## 安装策略
 
-- `.agents/` 是共享源: Claude 和 Codex 通过软链复用同一份规则和 hooks。
-- 已存在的真实文件不覆盖。若已有 `.claude/settings.json` 或 `.codex/hooks.json`, 先读内容, 再选择合并、跳过或提示用户。
-- 软链只在目标路径不存在时创建; 若目标路径存在但指向不同, 不强改。
-- 不生成根目录 `CLAUDE.md` / `AGENTS.md`; 不创建根目录 agent 入口软链。
+- 禁止软链安装。不得使用 `ln -s`、硬链接或链接式复制来创建 `.agents/`、`.claude/`、`.codex/` 下的配置。
+- 所有 agent 配置必须是实体文件。若 Claude 和 Codex 需要同一份规则或 hook, 分别写入 `.claude/` 和 `.codex/` 的真实文件; `.agents/` 可以作为安装记录和共享参考, 但不能通过软链充当目标文件。
+- 已存在的真实文件不覆盖。若已有 `.claude/settings.json`、`.claude/hooks.json`、`.codex/hooks.json` 或 hook 脚本, 先读内容, 再由 AI 手动补充缺失字段、追加缺失 hook, 或跳过并说明原因。
+- 不生成根目录 `CLAUDE.md` / `AGENTS.md`; 不创建任何根目录或 agent 入口软链。
 - 写 `.agents/.install-manifest.json`, 记录本次 `created`, `modified`, `skipped`, `commands`, `logs`。
 - GitHub Actions workflow 是标准安装项。若 `.github/workflows/` 不存在, 创建语言对应的 `ci.yml`; 若已存在 workflow, 只做审阅式合并或跳过。
 - 大项目默认 baseline: hooks 只给摘要, 完整日志进 `.git/hx-init/logs` 或用户 cache。
@@ -53,16 +53,19 @@ feat fix docs style refactor perf test build ci chore revert release deps securi
 |------|----------|------|
 | `.gitignore` | `.gitignore` | init 时审阅式合并; modify 时通常跳过 |
 
-## 软链（始终创建）
+## Agent 实体文件（禁止软链）
 
-```
-.claude/settings.json → ../.agents/settings.json
-.claude/rules → ../.agents/rules
-.claude/hooks.json → ../.agents/hooks.json
-.claude/hooks → ../.agents/hooks
-.codex/hooks.json → ../.agents/hooks.json
-.codex/hooks → ../.agents/hooks
-```
+这些路径如需启用, 必须创建或审阅式合并为真实文件/目录:
+
+| 目标 | 规则 |
+|------|------|
+| `.claude/settings.json` | 不存在时按项目定制后新增; 存在时手动合并缺失配置 |
+| `.claude/hooks.json` | 不存在时按项目定制后新增; 存在时手动合并缺失 hooks |
+| `.claude/hooks/*.sh` | 写真实脚本文件, 写盘后 `chmod 755` |
+| `.claude/rules/*.md` | 写真实规则文件, 已存在则读后补充或跳过 |
+| `.codex/hooks.json` | 不存在时按项目定制后新增; 存在时手动合并缺失 hooks |
+| `.codex/hooks/*.sh` | 写真实脚本文件, 写盘后 `chmod 755` |
+| `.codex/rules/*.md` | 写真实规则文件, 已存在则读后补充或跳过 |
 
 ## 用户确认预览
 

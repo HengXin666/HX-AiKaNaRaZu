@@ -27,7 +27,7 @@
 ## 模式
 
 - **init**: 新分支提交初始化配置。可新增 GitHub Actions workflow/lefthook/hook/rules/deps 建议, 但已有配置仍需审阅式 patch。
-- **modify**: 默认模式。优先 `.agents/` hooks 和规则; 工程级 hooks/deps 只在用户确认后安装。
+- **modify**: 默认模式。优先为用户启用的 agent 目录写入实体 hooks 和规则; 工程级 hooks/deps 只在用户确认后安装。
 
 ## 工具链(三层门禁)
 
@@ -45,12 +45,12 @@
 |------|------|------|
 | `lefthook.yml` | `lefthook.yml` | 审阅: 不存在则按包管理器渲染模板; 存在则对比差异、提示合并 |
 | `ci.yml` | `.github/workflows/ci.yml` | 审阅: 不存在则按包管理器渲染模板; 存在则只追加缺失 verify 步骤 |
-| `hooks.json` | `.agents/settings.json` | 不存在时新增; 存在时合并或跳过 |
-| `hooks-codex.json` | `.agents/hooks.json` | 不存在时新增; 存在时合并或跳过 |
-| `hooks/format_react.sh` | `.agents/hooks/format_react.sh` | 不存在时新增 |
-| `hooks/verify_react.sh` | `.agents/hooks/verify_react.sh` | 不存在时新增 |
-| `rules/architecture.md` | `.agents/rules/react-architecture.md` | 不存在时新增; 存在时跳过 |
-| `rules/naming.md` | `.agents/rules/react-ts-naming.md` | 不存在时新增; 存在时跳过 |
+| `hooks.json` | `.claude/settings.json` / `.claude/hooks.json` 的实体配置 | 不存在时新增; 存在时手动合并或跳过 |
+| `hooks-codex.json` | `.codex/hooks.json` 的实体配置 | 不存在时新增; 存在时手动合并或跳过 |
+| `hooks/format_react.sh` | `.claude/hooks/format_react.sh`、`.codex/hooks/format_react.sh` 等需要启用的 agent 目录实体文件 | 不存在时新增 |
+| `hooks/verify_react.sh` | `.claude/hooks/verify_react.sh`、`.codex/hooks/verify_react.sh` 等需要启用的 agent 目录实体文件 | 不存在时新增 |
+| `rules/architecture.md` | `.claude/rules/react-architecture.md`、`.codex/rules/react-architecture.md` 等需要启用的 agent 目录实体文件 | 不存在时新增; 存在时跳过 |
+| `rules/naming.md` | `.claude/rules/react-ts-naming.md`、`.codex/rules/react-ts-naming.md` 等需要启用的 agent 目录实体文件 | 不存在时新增; 存在时跳过 |
 
 `format_react.sh` 只处理本次工具写入的 JS/TS/JSON/CSS/Markdown 文件。`verify_react.sh` 只输出摘要, 完整日志写入 `.git/hx-init/logs/react-verify-latest.log` 或用户 cache。
 

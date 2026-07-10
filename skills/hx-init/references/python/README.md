@@ -31,10 +31,10 @@ Python 安装必须适配现有工程。先扫描, 再决定要新增、局部 p
 
 | 文件 | 目标路径 |
 |------|----------|
-| `hooks/format_py.sh` | `.agents/hooks/format_py.sh` |
-| `hooks/verify_py.sh` | `.agents/hooks/verify_py.sh` |
-| `hooks.json` | `.agents/settings.json` (CodeBuddy) |
-| `hooks-codex.json` | `.agents/hooks.json` (Codex) |
+| `hooks/format_py.sh` | `.claude/hooks/format_py.sh`、`.codex/hooks/format_py.sh` 等需要启用的 agent 目录实体文件 |
+| `hooks/verify_py.sh` | `.claude/hooks/verify_py.sh`、`.codex/hooks/verify_py.sh` 等需要启用的 agent 目录实体文件 |
+| `hooks.json` | `.claude/settings.json` / `.claude/hooks.json` 的实体配置, 存在时手动合并 |
+| `hooks-codex.json` | `.codex/hooks.json` 的实体配置, 存在时手动合并 |
 
 `format_py.sh` 只格式化本次工具写入的 Python 文件。`verify_py.sh` 运行验证后只输出摘要, 完整日志写入 `.git/hx-init/logs/python-verify-latest.log` 或用户 cache。
 
@@ -65,8 +65,8 @@ Python 安装必须适配现有工程。先扫描, 再决定要新增、局部 p
 | 文件 | 目标 | 模式 |
 |------|------|------|
 | `check_arch.py` | `scripts/check_arch.py` | 始终; 默认 advisory |
-| `rules/architecture.md` | `.agents/rules/architecture.md` | 始终 |
-| `rules/naming.md` | `.agents/rules/naming.md` | 始终 |
+| `rules/architecture.md` | `.claude/rules/architecture.md`、`.codex/rules/architecture.md` 等需要启用的 agent 目录实体文件 | 始终 |
+| `rules/naming.md` | `.claude/rules/naming.md`、`.codex/rules/naming.md` 等需要启用的 agent 目录实体文件 | 始终 |
 
 ## GitHub Actions workflow
 
