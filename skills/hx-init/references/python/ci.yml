@@ -5,8 +5,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "{{PY_VER}}"
-      - run: uv sync
-      - run: bash scripts/verify.sh
+      - run: {{INSTALL_CMD}}
+      - run: {{VERIFY_CMD}}

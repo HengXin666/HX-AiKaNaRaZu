@@ -21,11 +21,11 @@ Python 安装必须适配现有工程。先扫描, 再决定要新增、局部 p
 
 - 已有 `pyproject.toml`: 不整文件替换。只补缺失的 `[tool.ruff]`, `[tool.mypy]` 或 `[tool.ty]` 片段; 保留项目原本依赖、line-length、exclude 和插件。
 - 已有 ruff/black/isort: 复用现有 formatter/linter。不要同时引入互相冲突的 formatter。
-- 已有 mypy/pyright/ty: 默认沿用现有类型检查器; 没有时让用户选, 大项目可先跳过 typecheck 或只跑 changed-files。
-- 已有 pre-commit: 追加缺失 hook, 不重排已有 repo。没有时, init 模式可新增; modify 模式先询问。
+- 已有 mypy/pyright/ty: 默认沿用现有类型检查器；没有时新项目使用稳定默认项，老项目可先跳过 typecheck 或只跑 changed-files。
+- 已有 pre-commit: 追加缺失 hook，不重排已有 repo。没有时 init 模式可新增；modify 模式只在确有价值且不会重复现有 hook 时新增。
 - 已有 tox/nox/pytest: `scripts/verify.sh` 应调用现有验证入口, 不臆造测试命令。
 - 没有 uv 的项目不要强制 uv。按现有包管理器给命令: uv/poetry/pdm/pip 各自适配。
-- `check_arch.py` 默认 advisory 且限制输出; 只有用户选择 strict 时才加 `--strict` 阻断。
+- `check_arch.py` 默认 advisory 且限制输出；新项目 strict 时才加 `--strict` 阻断。
 
 ## hooks
 
@@ -42,23 +42,26 @@ Python 安装必须适配现有工程。先扫描, 再决定要新增、局部 p
 
 | 文件 | 目标 | 占位符 |
 |------|------|--------|
-| `pyproject.toml` | `pyproject.toml` | `{{PY_VER}}` `{{RUFF_TARGET}}` `{{CHECKER_DEPS}}` `{{CHECKER_SECTION}}` `{{TEST_IGNORE}}` |
+| `pyproject.toml` | `pyproject.toml` | `{{PY_VER}}` `{{RUFF_TARGET}}` `{{CHECKER_DEP_ENTRY}}` `{{CHECKER_SECTION}}` `{{TEST_IGNORE}}` |
 | `pre-commit-config.yaml` | `.pre-commit-config.yaml` | `{{CHECKER}}` `{{TYPE_CMD_PRECOMMIT}}` `{{PYTHON_RUN}}` `{{SRC_DIR}}` |
-| `verify.sh` | `scripts/verify.sh` | `{{CHECKER}}` `{{TYPE_CMD_VERIFY}}` `{{SRC_DIR}}` |
-| `ci.yml` | `.github/workflows/ci.yml` | `{{PY_VER}}` |
+| `verify.sh` | `scripts/verify.sh` | `{{CHECKER}}` `{{TYPE_CMD_VERIFY}}` `{{TEST_CMD_VERIFY}}` `{{SRC_DIR}}` |
+| `ci.yml` | `.github/workflows/ci.yml` | `{{PY_VER}}` `{{INSTALL_CMD}}` `{{VERIFY_CMD}}` |
 
 ### 占位符替换规则
 
 - `{{PY_VER}}` → `3.11`
 - `{{RUFF_TARGET}}` → `py311`(PY_VER 去点)
 - `{{CHECKER}}` → `mypy` / `ty` / `none`
-- `{{CHECKER_DEPS}}` → `"mypy>=1.14.1"` / `"ty>=0.0.1a1"` / 删除该项
+- `{{CHECKER_DEP_ENTRY}}` → `"mypy>=1.14.1", ` / `"ty>=0.0.1a1", ` / 空字符串。该值代表可选列表项并包含尾随逗号和空格。
 - `{{SRC_DIR}}` → `src` 或 `.`
 - `{{TEST_IGNORE}}` → `.` 时 `"tests/**" = ["ANN", "S101"]`, 否则 `"**/tests/**" = ["ANN", "S101"]`
-- `{{TYPE_CMD_PRECOMMIT}}` -> 按包管理器渲染, 如 `uv run mypy .` / `poetry run mypy .` / `python -m mypy .`
-- `{{TYPE_CMD_VERIFY}}` -> 按包管理器渲染; `SRC_DIR` 不是 `.` 时在子目录内执行
+- `{{TYPE_CMD_PRECOMMIT}}` -> 按包管理器渲染，如 `uv run mypy .` / `poetry run mypy .` / `python -m mypy .`；checker 为 none 时渲染为 `true`
+- `{{TYPE_CMD_VERIFY}}` -> 按包管理器渲染；`SRC_DIR` 不是 `.` 时在子目录内执行；checker 为 none 时渲染为 `echo "SKIP type-check: no checker selected"`
+- `{{TEST_CMD_VERIFY}}` -> 优先复用现有 tox/nox/pytest 命令；没有测试入口时渲染为 `echo "SKIP tests: no test command detected"`
 - `{{PYTHON_RUN}}` -> `uv run python` / `poetry run python` / `pdm run python` / `python3`
 - `{{CHECKER_SECTION}}`: mypy → `[tool.mypy]` 段, ty → `[tool.ty.src]` 段, none → 空
+- `{{INSTALL_CMD}}` -> 根据锁文件安装所选包管理器后执行 `uv sync` / `poetry install` / `pdm install`；pip 项目只使用项目虚拟环境，不做全局安装
+- `{{VERIFY_CMD}}` -> 调用项目统一验证入口，默认 `bash scripts/verify.sh`
 
 ## 静态文件
 
@@ -82,7 +85,7 @@ Python 安装必须适配现有工程。先扫描, 再决定要新增、局部 p
 - uv: `uv sync`, `uv run pre-commit install`
 - poetry: `poetry install`, `poetry run pre-commit install`
 - pdm: `pdm install`, `pdm run pre-commit install`
-- pip/venv: 先确认用户环境, 不自动全局安装
+- pip/venv: 自动使用项目虚拟环境；环境不存在时创建本地 `.venv`，不做全局安装
 
 验证失败时不要粘贴完整输出。查看详情:
 

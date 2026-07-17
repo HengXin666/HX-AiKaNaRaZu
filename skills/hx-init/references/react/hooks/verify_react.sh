@@ -141,6 +141,15 @@ if [[ -f "knip.json" || -f "knip.ts" || -f ".knip.json" ]] || grep -q '"knip"' p
   run_bin knip "$PM" --no-progress || PASS=false
 fi
 
+if has_script test; then
+  CI=1 run_script test "$PM" || PASS=false
+fi
+
+# 构建通常比 Stop hook 可接受的反馈时间更长，仅在显式启用时运行。
+if [[ "${HX_VERIFY_BUILD:-0}" = "1" ]] && has_script build; then
+  run_script build "$PM" || PASS=false
+fi
+
 if [[ "$RAN" = false ]]; then
   echo "[hooks] no react verification command detected; skip" >&2
   exit 0

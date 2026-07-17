@@ -1,105 +1,66 @@
 # HX-AiKaNaRaZu
 
-AI Coding 强约束技能包。当前仓库以 `skills/hx-init` 为主入口，用来给目标项目安装 Claude/Codex 共享的 hooks、规则文档和工程校验配置。
+面向新项目和老项目的一键 AI Coding 工程能力包。用户只需要调用 `hx-skill-orchestrator`，它会自动探索仓库、理解业务并调度其余专业 Skill。
 
-## 用法
+## 一键安装
 
-### 一次性安装
-
-默认安装到当前项目的 `.codex/skills/hx-init`：
+在目标项目根目录执行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash
 ```
 
-安装全部 skill 到当前项目：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash -s -- --all
-git add .codex/skills
-```
-
-需要个人全局安装时显式加 `--global`：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash -s -- --global
-```
-
-更新已有安装时显式加 `--force`，默认不会覆盖已有目录：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash -s -- --force
-```
-
-安装 `hx-libs-sentaku`：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash -s -- --skill hx-libs-sentaku
-```
-
-也可以使用简写：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/HengXin666/HX-AiKaNaRaZu/main/install.sh | bash -s -- hx-libs-sentaku
-```
-
-也可以基于 Git 本地安装：
-
-```bash
-git clone https://github.com/HengXin666/HX-AiKaNaRaZu.git
-cd HX-AiKaNaRaZu
-./install.sh
-```
-
-### 使用 skill
-
-在 Codex 中对目标项目说：
+默认一次安装完整套件到 `.codex/skills/`。之后只需要告诉 Codex：
 
 ```text
-使用 hx-init 为当前项目配置强约束
+使用 hx-skill-orchestrator 帮我完整配置这个项目
 ```
 
-`hx-init` 会先扫描当前目录，然后询问：
+也可以更具体地说：
 
-- 语言/框架：Python、React TS、Python + React
-- 模式：初始化或改造
-- Python 类型检查器：mypy、ty 或跳过
+```text
+使用 hx-skill-orchestrator 初始化这个新项目
+使用 hx-skill-orchestrator 给这个老项目接入完整工程和测试体系
+```
 
-## 核心约束
+## 自动完成的工作
 
-- Python 路径保持纯新增：已存在文件不覆盖、不合并、不备份。
-- Agent 配置强制使用真实文件：不创建 `.agents` / `.claude` / `.codex` 之间的软链接，已有配置由 AI 审阅后手动补充。
-- React 路径采用审阅式安装：先读取已有配置，再决定新增、追加或跳过。
-- 所有 shell hooks 写盘后需要 `chmod 755`。
-- 安装记录写入 `.agents/.install-manifest.json`，用于后续精确卸载。
+调度入口会自行完成：
 
-## 装进目标项目的内容
+1. 判断新项目初始化或老项目渐进接入。
+2. 探索源码、文档、业务流程、权限、数据和外部依赖。
+3. 保留老项目已有技术栈；新项目缺少选型时调用 `hx-libs-sentaku`。
+4. 调用 `hx-init` 补齐最小工程约束、hooks、统一验证入口和 CI。
+5. 调用 `hx-test-pipeline` 按实际业务风险设计单元、集成、E2E 和真实外部 canary。
+6. 自动运行验证并修复本次引入的问题。
 
-| 类别 | 内容 |
-|---|---|
-| Agent 入口 | `.agents/rules/*.md` |
-| Claude/Codex hooks | `.claude/`、`.codex/`、`.agents/` 下按需写入实体文件；禁止软链，已有文件只审阅式补充 |
-| 可选 Git hook | `commit-msg` 检查，要求提交信息形如 `[feat] add installer` |
-| GitHub Actions | `.github/workflows/ci.yml` 或审阅式合并已有 workflow |
-| Python 校验 | `pyproject.toml`、`.pre-commit-config.yaml`、`scripts/verify.sh`、`scripts/check_arch.py` |
-| React 校验 | `lefthook.yml`、Biome/Prettier/TypeScript/Knip hooks 和规则 |
+包管理器、测试框架、严格度和接入模式默认由 AI 根据仓库事实决定。只有需要凭证、不可逆操作、生产副作用或无法推断的业务方向时才询问用户。
 
-## 目录
+## 设计原则
+
+- 用户只接触一个调度入口，专业 Skill 在内部按需加载。
+- 老项目复用已有工具并渐进接入，不强推大规模重构。
+- 新项目使用严格但精简的默认方案。
+- 测试围绕业务不变量、权限、失败恢复和外部契约，不机械追求覆盖率。
+- 优先复用已有文件；缺少统一入口时才新增一个适配项目的验证脚本。
+- 不覆盖用户已有配置，不自动提交或推送。
+
+## 高级安装选项
+
+```bash
+./install.sh --global                        # 安装到个人 Codex 目录
+./install.sh --force                         # 更新完整套件
+./install.sh --skill hx-skill-orchestrator   # 仅安装单个 Skill
+```
+
+正常使用不需要选择单个 Skill；默认完整安装才能保证调度入口具备全部能力。
+
+## Skill 组成
 
 ```text
 skills/
-  hx-init/
-    SKILL.md
-    references/
-      _shared/
-      python/
-      react/
-  hx-libs-sentaku/
-    SKILL.md
-    references/
-      db/
-      py/
-      react/
+  hx-skill-orchestrator/  # 唯一用户入口
+  hx-libs-sentaku/        # 技术选型
+  hx-init/                # 新项目初始化与老项目约束接入
+  hx-test-pipeline/       # 业务专属分层测试体系
 ```
-
-新增语言时，在 `skills/hx-init/references/` 下添加对应目录，并在 `skills/hx-init/SKILL.md` 中扩展识别和安装流程。

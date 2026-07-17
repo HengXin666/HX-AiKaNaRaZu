@@ -31,12 +31,14 @@ run_python() {
   fi
 }
 
-echo "==> [1/4] ruff check (含 PLC2401 中文命名拦截)"
+echo "==> [1/5] ruff check (含 PLC2401 中文命名拦截)"
 run_ruff check .
-echo "==> [2/4] ruff format --check"
+echo "==> [2/5] ruff format --check"
 run_ruff format --check .
-echo "==> [3/4] type-check ({{CHECKER}})"
+echo "==> [3/5] type-check ({{CHECKER}})"
 {{TYPE_CMD_VERIFY}}
-echo "==> [4/4] arch-check advisory (300行/文件数/_前缀/中文命名)"
+echo "==> [4/5] tests"
+{{TEST_CMD_VERIFY}}
+echo "==> [5/5] arch-check advisory (300行/文件数/_前缀/中文命名)"
 run_python scripts/check_arch.py {{SRC_DIR}}
 echo "ALL PASS"

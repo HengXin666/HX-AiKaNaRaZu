@@ -1,6 +1,6 @@
 # 通用配置（所有语言共享）
 
-以下文件对所有语言类型都生效, 但仍然要先扫描并让用户确认。不要在用户确认前写盘。
+以下文件对所有语言类型都生效。先扫描；用户明确要求安装/接入或由调度器调用时直接执行安全的项目内修改。
 
 ## 安装策略
 
@@ -38,7 +38,7 @@ feat fix docs style refactor perf test build ci chore revert release deps securi
 
 安装规则:
 
-- 安装前先询问用户是否启用。
+- 只有用户已经明确要求 commit message 规则时才启用；否则直接跳过，不额外提问。
 - 复制 `check_commit_msg.sh` 和 `install_commit_msg_hook.sh` 到 `.agents/hooks/`。
 - 运行 `bash .agents/hooks/install_commit_msg_hook.sh`。
 - 若已有非 hx-init 管理的 `.git/hooks/commit-msg`, 默认跳过, 不覆盖。
@@ -67,7 +67,7 @@ feat fix docs style refactor perf test build ci chore revert release deps securi
 | `.codex/hooks/*.sh` | 写真实脚本文件, 写盘后 `chmod 755` |
 | `.codex/rules/*.md` | 写真实规则文件, 已存在则读后补充或跳过 |
 
-## 用户确认预览
+## 执行摘要
 
 安装前展示:
 
@@ -76,4 +76,4 @@ feat fix docs style refactor perf test build ci chore revert release deps securi
 - 将执行的命令。
 - hooks 的严格度和日志位置。
 
-用户没有明确确认时, 只输出提案。
+用户只要求审视时仅输出提案；安装、接入或调度模式直接执行。只有凭证、不可逆操作、业务方向冲突或用户改动无法保护时询问。

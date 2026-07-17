@@ -9,8 +9,8 @@
 | 样式 | Tailwind CSS | 必须使用 | <https://tailwindcss.com/> |
 | UI | shadcn/ui | 默认 UI 方案 | <https://ui.shadcn.com/docs> |
 | 图标 | lucide-react | 默认图标库 | <https://lucide.dev/guide/react> |
-| 动效 | React Bits | 默认动效库 | <https://github.com/DavidHDev/react-bits> |
-| 节点图 | React Flow | 默认节点图/流程图方案 | <https://reactflow.dev/> |
+| 动效 | React Bits | 明确需要复杂动效时才使用 | <https://github.com/DavidHDev/react-bits> |
+| 节点图 | React Flow | 明确存在节点图或流程编辑需求时才使用 | <https://reactflow.dev/> |
 
 ## 常用可选库
 

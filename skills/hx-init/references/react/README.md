@@ -27,7 +27,7 @@
 ## 模式
 
 - **init**: 新分支提交初始化配置。可新增 GitHub Actions workflow/lefthook/hook/rules/deps 建议, 但已有配置仍需审阅式 patch。
-- **modify**: 默认模式。优先为用户启用的 agent 目录写入实体 hooks 和规则; 工程级 hooks/deps 只在用户确认后安装。
+- **modify**: 默认模式。优先复用已有 hooks 和规则；确有缺口时直接做安全的项目内最小补充。
 
 ## 工具链(三层门禁)
 
@@ -52,7 +52,7 @@
 | `rules/architecture.md` | `.claude/rules/react-architecture.md`、`.codex/rules/react-architecture.md` 等需要启用的 agent 目录实体文件 | 不存在时新增; 存在时跳过 |
 | `rules/naming.md` | `.claude/rules/react-ts-naming.md`、`.codex/rules/react-ts-naming.md` 等需要启用的 agent 目录实体文件 | 不存在时新增; 存在时跳过 |
 
-`format_react.sh` 只处理本次工具写入的 JS/TS/JSON/CSS/Markdown 文件。`verify_react.sh` 只输出摘要, 完整日志写入 `.git/hx-init/logs/react-verify-latest.log` 或用户 cache。
+`format_react.sh` 只处理本次工具写入的 JS/TS/JSON/CSS/Markdown 文件。`verify_react.sh` 运行 lint、typecheck、knip 和已存在的 `test` script；设置 `HX_VERIFY_BUILD=1` 时再运行 `build`。它只输出摘要，完整日志写入 `.git/hx-init/logs/react-verify-latest.log` 或用户 cache。
 
 ## lefthook.yml 审阅规则
 
@@ -65,10 +65,10 @@
 
 读已有 `lefthook.yml`, 检查是否已有 `pre-commit` / `pre-push`:
 
-- **不存在** -> init 模式可写入模板; modify 模式先询问
+- **不存在** -> init 模式写入模板；modify 模式仅在项目缺少等价 Git hook 时新增
 - **存在但无前端格式化** -> 按现有工具追加 biome 或 prettier/eslint 段
 - **存在且已有等价命令** -> 跳过, 不重复
-- **存在 pre-push** -> 仅在用户确认后追加 typecheck/deadcode; 大项目可先不启用 knip
+- **存在 pre-push** -> 避免重复；大项目仅在现有基线可接受时追加 typecheck，默认不强加 knip
 
 ## GitHub Actions workflow
 
@@ -82,7 +82,7 @@
 
 读已有 workflow, 检查是否已覆盖 install + lint/typecheck/test/build:
 
-- **不存在 workflow** -> init 模式可写入模板; modify 模式先询问
+- **不存在 workflow** -> init 模式写入模板；modify 模式在仓库使用 GitHub 且缺少等价 CI 时新增
 - **存在但无前端验证** -> 审阅式追加一个 job 或步骤
 - **存在且已有等价命令** -> 跳过, 不重复
 

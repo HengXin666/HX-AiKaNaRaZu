@@ -3,8 +3,8 @@ set -euo pipefail
 
 REPO_URL="${HX_AIKANARAZU_REPO:-https://github.com/HengXin666/HX-AiKaNaRaZu.git}"
 REF="${HX_AIKANARAZU_REF:-main}"
-SUPPORTED_SKILLS=("hx-init" "hx-libs-sentaku")
-SKILL_NAMES=("hx-init")
+SUPPORTED_SKILLS=("hx-skill-orchestrator" "hx-libs-sentaku" "hx-init" "hx-test-pipeline")
+SKILL_NAMES=("${SUPPORTED_SKILLS[@]}")
 SCOPE="project"
 FORCE=0
 
@@ -12,14 +12,14 @@ usage() {
   cat <<'EOF'
 Usage:
   ./install.sh [--global|--project] [--force] [--all] [--skill NAME] [--repo URL] [--ref REF]
-  ./install.sh hx-libs-sentaku [--global|--project] [--force]
+  ./install.sh SKILL_NAME [--global|--project] [--force]
 
 Installs HX-AiKaNaRaZu skill(s) for Codex.
 
 Options:
   --project     Install to ./.codex/skills/NAME for the current repository (default)
   --global      Install to ${CODEX_HOME:-$HOME/.codex}/skills/NAME
-  --skill NAME  Skill to install: hx-init or hx-libs-sentaku (default: hx-init)
+  --skill NAME  Advanced: install only one named skill (default installs the complete suite)
   --all         Install all supported skills
   --force       Replace an existing skill install
   --repo URL    Git repository URL to install from when not run inside a checkout
@@ -74,7 +74,7 @@ while [[ $# -gt 0 ]]; do
       usage
       exit 0
       ;;
-    hx-init|hx-libs-sentaku)
+    hx-init|hx-libs-sentaku|hx-test-pipeline|hx-skill-orchestrator)
       set_skill_names "$1"
       shift
       ;;
@@ -89,7 +89,7 @@ done
 for skill_name in "${SKILL_NAMES[@]}"; do
   if ! is_supported_skill "$skill_name"; then
     echo "Unsupported skill: $skill_name" >&2
-    echo "Supported skills: hx-init, hx-libs-sentaku" >&2
+    echo "Supported skills: ${SUPPORTED_SKILLS[*]}" >&2
     exit 2
   fi
 done
@@ -180,8 +180,9 @@ for skill_name in "${SKILL_NAMES[@]}"; do
   installed+=("$skill_name")
 done
 
-if [[ "$SCOPE" = "project" ]]; then
-  if [[ "${#installed[@]}" -gt 0 ]]; then
-    echo "Project install is ready to commit: git add .codex/skills"
+for skill_name in "${SKILL_NAMES[@]}"; do
+  if [[ "$skill_name" = "hx-skill-orchestrator" ]]; then
+    echo 'Ready. In Codex, say: 使用 hx-skill-orchestrator 帮我完整配置这个项目'
+    break
   fi
-fi
+done
